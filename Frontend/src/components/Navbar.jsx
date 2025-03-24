@@ -1,13 +1,17 @@
 import React from 'react';
-import "./Navbar.css";
+import './navbar.css'
 
 const Navbar = () => {
   return (
-    <nav className="navbar">
-      <span className="navbar-title">Overhead Management System</span>
-      <div className="navbar-buttons">
-        <button className="btn btn-primary" onClick={() => alert('Add Project Clicked')}>Add Project</button>
-        <button className="btn btn-danger" onClick={() => alert('Logout Clicked')}>Logout</button>
+    <nav className="flex justify-between items-center bg-blue-500 text-white shadow-md px-6 py-4 fixed top-0 left-0 right-0 w-full z-50">
+      <span className="text-xl font-bold ">Overhead Management System</span>
+      <div className="flex gap-4">
+        <button className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white">
+          Add Project
+        </button>
+        <button className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white">
+          Logout
+        </button>
       </div>
     </nav>
   );
