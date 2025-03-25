@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import './pages.css'
-import logbg from "../assets/logbg.jpg";
+import log from "../assets/log.jpg";
 import bgImage from "../assets/logbg.jpg";
 
 
@@ -23,7 +23,8 @@ const Login = () => {
       <div className="relative flex flex-col md:flex-row items-center bg-white shadow-2xl rounded-lg p-8 md:p-12">
         {/* Left Side - Illustration */}
         <div className="hidden md:block w-80">
-        <img src={logbg} alt="Login Illustration" className="rounded-lg" />
+        <img src={log} alt="Login Illustration" className="rounded-lg w-120 h-80 object-cover" />
+
         </div>
 
         {/* Right Side - Login Form */}
