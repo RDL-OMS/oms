@@ -23,7 +23,7 @@ const Login = () => {
       <div className="relative flex flex-col md:flex-row items-center bg-white shadow-2xl rounded-lg p-8 md:p-12">
         {/* Left Side - Illustration */}
         <div className="hidden md:block w-80">
-        <img src={log} alt="Login Illustration" className="rounded-lg w-120 h-80 object-cover" />
+        <img src={log} alt="Login Illustration" className="rounded-lg w-150 h-150 object-cover" />
 
         </div>
 
