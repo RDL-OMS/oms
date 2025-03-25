@@ -6,6 +6,7 @@ import Login from "./pages/login";
 import AddProject from "./pages/AddProject";
 import ProjectList from "./pages/ProjectList";
 import ProjectDetails from "./pages/ProjectDetails";
+import CostingHead from "./pages/costinghead";
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -42,18 +43,31 @@ function App() {
             <div className="min-h-screen">
               <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
               <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
-                <ProjectList/>
+                <ProjectList />
               </main>
             </div>
           }
         />
+        <Route
+          path="/Costinghead"
+          element={
+            <div className="min-h-screen">
+              <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
+              <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
+                <CostingHead />
+              </main>
+            </div>
+          }
+        />
+
+
         <Route
           path="/Projectdetails"
           element={
             <div className="min-h-screen">
               <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
               <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
-                <ProjectDetails/>
+                <ProjectDetails />
               </main>
             </div>
           }
@@ -73,7 +87,7 @@ function App() {
             </div>
           }
         />
-         </Routes>
+      </Routes>
     </Router>
   );
 }

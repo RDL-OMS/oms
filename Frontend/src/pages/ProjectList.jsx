@@ -43,7 +43,11 @@ const ProjectList = () => {
               <td className="p-3">{project.description}</td>
               <td className="p-3">
                 <button
-                  onClick={() => navigate(`/overhead/${project.id}`)}
+                  onClick={() =>
+                    navigate(`/overhead/${project.id}`, {
+                      state: { projectName: project.name },
+                    })
+                  }
                   className="bg-green-500 text-white px-3 py-1 rounded"
                 >
                   Overhead
