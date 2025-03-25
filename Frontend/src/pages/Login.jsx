@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import './pages.css'
+import logbg from "../assets/logbg.jpg";
+import bgImage from "../assets/logbg.jpg";
 
 
 const Login = () => {
@@ -14,12 +16,14 @@ const Login = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-900 to-black relative">
       {/* Background image and overlay */}
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40" style={{ backgroundImage: "url('https://source.unsplash.com/1600x900/?technology')" }}></div>
-
+      <div
+  className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
+  style={{ backgroundImage: `url(${bgImage})` }}
+></div>
       <div className="relative flex flex-col md:flex-row items-center bg-white shadow-2xl rounded-lg p-8 md:p-12">
         {/* Left Side - Illustration */}
         <div className="hidden md:block w-80">
-          <img src="https://source.unsplash.com/400x400/?coding,computer" alt="Login Illustration" className="rounded-lg" />
+        <img src={logbg} alt="Login Illustration" className="rounded-lg" />
         </div>
 
         {/* Right Side - Login Form */}

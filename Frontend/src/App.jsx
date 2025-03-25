@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/login";
 import AddProject from "./pages/AddProject";
+import ProjectList from "./pages/ProjectList";
 function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -40,6 +41,7 @@ function App() {
           }
         />
           <Route path="/add-project" element={<AddProject />} />
+          <Route path="/ProjectList" element={<ProjectList/>}/>
           
       </Routes>
     </Router>
