@@ -5,7 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/login";
 import AddProject from "./pages/AddProject";
 import ProjectList from "./pages/ProjectList";
-
+import ProjectDetails from "./pages/ProjectDetails";
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -41,7 +41,7 @@ function App() {
         />
           <Route path="/add-project" element={<AddProject />} />
           <Route path="/ProjectList" element={<ProjectList/>}/>
-          
+          <Route path="/project-details" element={<ProjectDetails />} />
       </Routes>
     </Router>
   );
