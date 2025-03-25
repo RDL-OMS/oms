@@ -37,7 +37,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen">
+    <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen ">
       {/* Year Selection */}
       <div className="flex justify-center mb-8">
         <label htmlFor="year" className="font-semibold mr-3 text-gray-700 text-lg">

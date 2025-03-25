@@ -1,0 +1,10 @@
+/* Ensure body has no margin by default */
+body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Main content area styling */
+  main {
+    min-height: calc(100vh - 4rem); /* Adjust based on your navbar height */
+  }
