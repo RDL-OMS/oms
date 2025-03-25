@@ -10,7 +10,6 @@ const CostingHead = () => {
   console.log('Project ID from URL:', id);
 
   // Hardcode project names for now based on ID
-  // In a real app, you'd fetch this from a shared state or API
   const projectNames = {
     1: 'Project A',
     2: 'Project B',
@@ -32,12 +31,18 @@ const CostingHead = () => {
     description: '',
   });
 
+  // State for managing the subhead pop-up
+  const [subheadModalOpen, setSubheadModalOpen] = useState(false);
+  const [currentRowId, setCurrentRowId] = useState(null);
+  const [subheadInput, setSubheadInput] = useState('');
+
   // Handle adding a new empty row for input
   const handleAddNewRow = () => {
     const newRow = {
       id: costingData.length + 1,
       overheadComponent: '',
       description: '',
+      subheads: [], // Initialize subheads array for each row
     };
     setCostingData([...costingData, newRow]);
     setEditId(newRow.id);
@@ -78,6 +83,37 @@ const CostingHead = () => {
     setCostingData(updatedData);
   };
 
+  // Open the subhead modal for a specific row
+  const handleOpenSubheadModal = (id) => {
+    setCurrentRowId(id);
+    setSubheadModalOpen(true);
+    setSubheadInput(''); // Reset input field
+  };
+
+  // Close the subhead modal
+  const handleCloseSubheadModal = () => {
+    setSubheadModalOpen(false);
+    setCurrentRowId(null);
+    setSubheadInput('');
+  };
+
+  // Handle adding a subhead to the current row
+  const handleAddSubhead = () => {
+    if (subheadInput.trim() === '') return; // Prevent adding empty subheads
+
+    const updatedData = costingData.map((item) => {
+      if (item.id === currentRowId) {
+        return {
+          ...item,
+          subheads: [...(item.subheads || []), subheadInput.trim()],
+        };
+      }
+      return item;
+    });
+    setCostingData(updatedData);
+    setSubheadInput(''); // Clear input after adding
+  };
+
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       {/* Display the project name at the top */}
@@ -91,6 +127,7 @@ const CostingHead = () => {
               <th className="p-3 text-left">Sl No</th>
               <th className="p-3 text-left">Overhead Component</th>
               <th className="p-3 text-left">Description</th>
+              <th className="p-3 text-left">Subheads</th>
               <th className="p-3 text-center">Action</th>
             </tr>
           </thead>
@@ -131,6 +168,19 @@ const CostingHead = () => {
                       )
                     )}
                   </td>
+                  <td className="p-3 text-left">
+                    {item.subheads && item.subheads.length > 0 ? (
+                      <ul className="list-disc pl-5">
+                        {item.subheads.map((subhead, idx) => (
+                          <li key={idx} className="text-gray-700">
+                            {subhead}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-gray-400">No subheads</span>
+                    )}
+                  </td>
                   <td className="p-3 text-center">
                     {editId === item.id ? (
                       <button
@@ -148,6 +198,12 @@ const CostingHead = () => {
                       </button>
                     )}
                     <button
+                      onClick={() => handleOpenSubheadModal(item.id)}
+                      className="text-purple-500 hover:text-purple-700 mr-4"
+                    >
+                      Subhead
+                    </button>
+                    <button
                       onClick={() => handleDelete(item.id)}
                       className="text-red-500 hover:text-red-700"
                     >
@@ -158,7 +214,7 @@ const CostingHead = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="p-3 text-center">
+                <td colSpan="5" className="p-3 text-center">
                   No overhead data available. Click "Add New Overhead" to start.
                 </td>
               </tr>
@@ -176,6 +232,51 @@ const CostingHead = () => {
           Add New Overhead
         </button>
       </div>
+
+      {/* Subhead Modal */}
+      {subheadModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Add Subhead</h2>
+            <input
+              type="text"
+              value={subheadInput}
+              onChange={(e) => setSubheadInput(e.target.value)}
+              className="border p-2 rounded w-full mb-4"
+              placeholder="Enter subhead"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={handleAddSubhead}
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              >
+                Add
+              </button>
+              <button
+                onClick={handleCloseSubheadModal}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Close
+              </button>
+            </div>
+            {/* Display existing subheads for the current row */}
+            {currentRowId && costingData.find((item) => item.id === currentRowId)?.subheads?.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium">Existing Subheads:</h3>
+                <ul className="list-disc pl-5">
+                  {costingData
+                    .find((item) => item.id === currentRowId)
+                    .subheads.map((subhead, idx) => (
+                      <li key={idx} className="text-gray-700">
+                        {subhead}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
