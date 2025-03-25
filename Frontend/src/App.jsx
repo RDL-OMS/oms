@@ -26,6 +26,40 @@ function App() {
         />
         {/* Other protected routes */}
         <Route
+          path="/add-project"
+          element={
+            <div className="min-h-screen">
+              <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
+              <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
+                <AddProject />
+              </main>
+            </div>
+          }
+        />
+        <Route
+          path="/ProjectList"
+          element={
+            <div className="min-h-screen">
+              <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
+              <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
+                <ProjectList/>
+              </main>
+            </div>
+          }
+        />
+        <Route
+          path="/Projectdetails"
+          element={
+            <div className="min-h-screen">
+              <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
+              <main className="pt-16 px-4"> {/* pt-16 accounts for navbar height */}
+                <ProjectDetails/>
+              </main>
+            </div>
+          }
+        />
+
+        <Route
           path="*"
           element={
             <div className="min-h-screen">
@@ -39,10 +73,7 @@ function App() {
             </div>
           }
         />
-          <Route path="/add-project" element={<AddProject />} />
-          <Route path="/ProjectList" element={<ProjectList/>}/>
-          <Route path="/project-details" element={<ProjectDetails />} />
-      </Routes>
+         </Routes>
     </Router>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pie, Bar } from "react-chartjs-2";
 import "chart.js/auto";
+import './pages.css'
 
 const Dashboard = () => {
   const [year, setYear] = useState("2025");

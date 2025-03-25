@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import './pages.css'
 
 const AddProject = () => {
   const [projectName, setProjectName] = useState("");
