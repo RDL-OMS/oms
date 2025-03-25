@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/login";
-
+import AddProject from "./pages/AddProject";
 function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -39,6 +39,8 @@ function App() {
             </Layout>
           }
         />
+          <Route path="/add-project" element={<AddProject />} />
+          
       </Routes>
     </Router>
   );
