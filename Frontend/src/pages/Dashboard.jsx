@@ -1,10 +1,19 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Pie, Bar, Line } from "react-chartjs-2";
+import { useNavigate } from "react-router-dom";
 import "chart.js/auto";
 import './pages.css';
 
 const Dashboard = () => {
   const [year, setYear] = useState("2025");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/", { replace: true }); // Redirect to login if no token
+    }
+  }, [navigate]);
 
   const pieData = {
     labels: ["Infrastructure", "Operations", "IT", "HR", "Marketing"],

@@ -7,10 +7,9 @@ const Navbar = ({ onSidebarToggle }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Add your logout logic here
-    console.log("User logged out");
-    // Example: navigate to login page after logout
-    navigate("/");
+    localStorage.removeItem("token"); // Remove token
+    navigate("/", { replace: true }); // Redirect to login & prevent back navigation
+    window.location.reload(); // Ensure all states are reset
   };
 
   return (
