@@ -2,14 +2,24 @@ import React, { useState } from "react";
 
 const ProjectDetails = () => {
   const [rows, setRows] = useState([
-    { id: 1, overhead: "", description: "", expectedCost: "", actualCost: "", variance: "" },
+    { id: 1, overhead: "", subhead: "", description: "", expectedCost: "", actualCost: "", variance: "" },
   ]);
 
-  const overheadOptions = ["Infrastructure", "Operations", "IT", "HR", "Marketing"];
+  const overheadOptions = {
+    Infrastructure: ["Buildings", "Utilities", "Maintenance"],
+    Operations: ["Logistics", "Supply Chain", "Customer Service"],
+    IT: ["Software", "Hardware", "Security"],
+    HR: ["Recruitment", "Training", "Benefits"],
+    Marketing: ["Advertising", "Public Relations", "Market Research"],
+  };
 
   const handleInputChange = (index, field, value) => {
     const updatedRows = [...rows];
     updatedRows[index][field] = value;
+
+    if (field === "overhead") {
+      updatedRows[index].subhead = ""; // Reset subhead when overhead changes
+    }
 
     if (field === "expectedCost" || field === "actualCost") {
       const expected = parseFloat(updatedRows[index].expectedCost) || 0;
@@ -23,22 +33,21 @@ const ProjectDetails = () => {
   const addRow = () => {
     setRows([
       ...rows,
-      { id: rows.length + 1, overhead: "", description: "", expectedCost: "", actualCost: "", variance: "" },
+      { id: rows.length + 1, overhead: "", subhead: "", description: "", expectedCost: "", actualCost: "", variance: "" },
     ]);
   };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Project Title */}
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Project Title: XYZ Project</h1>
 
-      {/* Table */}
       <div className="bg-white shadow-md rounded-lg p-4">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-200">
               <th className="p-2 border">S.No</th>
               <th className="p-2 border">Overhead</th>
+              <th className="p-2 border">Subhead</th>
               <th className="p-2 border">Project Description</th>
               <th className="p-2 border">Expected Cost ($)</th>
               <th className="p-2 border">Actual Cost ($)</th>
@@ -56,11 +65,27 @@ const ProjectDetails = () => {
                     className="p-2 border rounded-md"
                   >
                     <option value="">Select</option>
-                    {overheadOptions.map((option, idx) => (
+                    {Object.keys(overheadOptions).map((option, idx) => (
                       <option key={idx} value={option}>
                         {option}
                       </option>
                     ))}
+                  </select>
+                </td>
+                <td className="p-2 border">
+                  <select
+                    value={row.subhead}
+                    onChange={(e) => handleInputChange(index, "subhead", e.target.value)}
+                    className="p-2 border rounded-md"
+                    disabled={!row.overhead}
+                  >
+                    <option value="">Select</option>
+                    {row.overhead &&
+                      overheadOptions[row.overhead].map((sub, idx) => (
+                        <option key={idx} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
                   </select>
                 </td>
                 <td className="p-2 border">
@@ -98,7 +123,6 @@ const ProjectDetails = () => {
           </tbody>
         </table>
 
-        {/* Add Row Button */}
         <button
           onClick={addRow}
           className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
