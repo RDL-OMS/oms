@@ -54,13 +54,28 @@ const ProjectList = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editedProject),
       });
-
+  
       if (!response.ok) throw new Error('Failed to update project');
-
-      setProjects(projects.map(proj => (proj._id === editingProjectId ? editedProject : proj)));
+  
+      // Reset editing state
       setEditingProjectId(null);
+      
+      // Force reload of projects by resetting loading state
+      setLoading(true);
+      setProjects([]);
+      
+      // Refetch projects
+      const refreshResponse = await fetch('http://localhost:5000/api/projects/getprojects');
+      if (!refreshResponse.ok) throw new Error('Failed to refresh projects');
+      
+      const data = await refreshResponse.json();
+      const sortedProjects = data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      setProjects(sortedProjects);
+      
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,7 +148,7 @@ const ProjectList = () => {
               <td className="p-3 space-x-2">
                 <button
                   onClick={() => navigate(`/costinghead`, {
-                    state: { projectId: project._id, projectName: project.name },
+                    state: { projectId: project.projectId, projectName: project.name },
                   })}
                   className="bg-green-500 text-white px-3 py-1 rounded text-sm"
                 >

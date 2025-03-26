@@ -68,7 +68,8 @@ exports.updateProject = async (req, res) => {
 
     const updatedProject = await Project.findByIdAndUpdate(
       id,
-      { name, description },
+      { name, description, 
+        updatedAt:Date.now() },
       { new: true, runValidators: true }
     );
 

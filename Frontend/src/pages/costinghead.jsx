@@ -3,15 +3,14 @@ import { useParams } from 'react-router-dom';
 
 const CostingHead = () => {
   console.log('CostingHead component is rendering');
-  const { id } = useParams();
+
+  // Get the project ID from the URL
+  const { id,projectName} = useParams();
   console.log('Project ID from URL:', id);
 
-  const projectNames = {
-    1: 'Project A',
-    2: 'Project B',
-    3: 'Project C',
-  };
-  const projectName = projectNames[id] || 'Unknown Project';
+  // Hardcode project names for now based on ID
+  
+  // const projectName = projectNames[id] || 'Unknown Project';
   console.log('Project Name:', projectName);
 
   const [costingData, setCostingData] = useState([]);
