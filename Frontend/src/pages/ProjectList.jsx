@@ -22,7 +22,7 @@ const ProjectList = () => {
         <thead>
           <tr className="bg-gray-200">
             <th className="p-3 text-left">S.No</th>
-            <th className="p-3 text-left">Project ID</th> {/* New Column */}
+            <th className="p-3 text-left">Project ID</th>
             <th className="p-3 text-left">Project Name</th>
             <th className="p-3 text-left">Project Description</th>
             <th className="p-3 text-left">Overhead</th>
@@ -33,10 +33,10 @@ const ProjectList = () => {
           {projects.map((project, index) => (
             <tr key={project.id} className="border-b">
               <td className="p-3">{index + 1}</td>
-              <td className="p-3">{project.id}</td> {/* Project ID Column */}
+              <td className="p-3">{project.id}</td>
               <td className="p-3">
                 <button
-                  onClick={() => navigate(`/project/${project.id}`)}
+                  onClick={() => navigate(`/project-details/${project.id}`, { state: { project } })}
                   className="text-blue-500 hover:underline"
                 >
                   {project.name}
@@ -46,8 +46,8 @@ const ProjectList = () => {
               <td className="p-3">
                 <button
                   onClick={() =>
-                    navigate(`/overhead/${project.id}`, {
-                      state: { projectName: project.name },
+                    navigate(`/costinghead`, {
+                      state: { projectId: project.id, projectName: project.name },
                     })
                   }
                   className="bg-green-500 text-white px-3 py-1 rounded"
@@ -57,7 +57,7 @@ const ProjectList = () => {
               </td>
               <td className="p-3">
                 <button
-                  onClick={() => navigate(`/edit-project/${project.id}`)}
+                  onClick={() => navigate(`/add-project`, { state: { project } })}
                   className="bg-yellow-500 text-white px-3 py-1 rounded mr-2"
                 >
                   Edit
