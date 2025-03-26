@@ -2,7 +2,8 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const User = require("../models/user");
-const Project = require("../models/Project"); // Import the Project model
+const Project = require("../models/Project");
+const CostOverhead = require("../models/Costoverhead");
 
 console.log("MongoDB URI:", process.env.MONGO_URI);
 
@@ -57,6 +58,60 @@ const sampleProjects = [
   }
 ];
 
+// Sample cost overheads for PROJ-001 (E-Commerce)
+const sampleOverheadsPROJ001 = [
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Development",
+    description: "Website development costs",
+    subheads: [
+      { name: "Frontend Development", createdAt: new Date() },
+      { name: "Backend Development", createdAt: new Date() },
+      { name: "Payment Gateway Integration", createdAt: new Date() }
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Hosting",
+    description: "Server and cloud services",
+    subheads: [
+      { name: "AWS Services", createdAt: new Date() },
+      { name: "Database Hosting", createdAt: new Date() }
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+// Sample cost overheads for PROJ-002 (Mobile Banking)
+const sampleOverheadsPROJ002 = [
+  {
+    projectId: "PROJ-002",
+    overheadComponent: "Security",
+    description: "Banking security implementation",
+    subheads: [
+      { name: "Encryption", createdAt: new Date() },
+      { name: "Two-Factor Authentication", createdAt: new Date() },
+      { name: "Penetration Testing", createdAt: new Date() }
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    projectId: "PROJ-002",
+    overheadComponent: "Compliance",
+    description: "Financial regulations",
+    subheads: [
+      { name: "PCI DSS Compliance", createdAt: new Date() },
+      { name: "Audit Costs", createdAt: new Date() }
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -68,16 +123,16 @@ mongoose
 
 const seedDatabase = async () => {
   try {
-    // Clear existing users and projects
+    // Clear existing data
     await User.deleteMany();
     await Project.deleteMany();
-    console.log("Existing users and projects cleared");
+    await CostOverhead.deleteMany();
+    console.log("Existing data cleared");
 
     // Seed sample users
     for (const user of sampleUsers) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(user.password, salt);
-
       await User.create({
         username: user.username,
         email: user.email,
@@ -85,16 +140,26 @@ const seedDatabase = async () => {
         role: user.role,
       });
     }
-    console.log("Sample users seeded successfully");
+    console.log("Users seeded");
 
     // Seed sample projects
-    await Project.insertMany(sampleProjects);
-    console.log("Sample projects seeded successfully");
+    const createdProjects = await Project.insertMany(sampleProjects);
+    console.log("Projects seeded");
+
+    // Seed overheads for PROJ-001
+    await CostOverhead.insertMany(sampleOverheadsPROJ001);
+    console.log("Overheads for PROJ-001 seeded");
+
+    // Seed overheads for PROJ-002
+    await CostOverhead.insertMany(sampleOverheadsPROJ002);
+    console.log("Overheads for PROJ-002 seeded");
 
     mongoose.connection.close();
+    console.log("Seeding complete");
   } catch (error) {
-    console.error("Error seeding database:", error);
+    console.error("Seeding error:", error);
     mongoose.connection.close();
+    process.exit(1);
   }
 };
 

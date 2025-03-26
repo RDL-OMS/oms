@@ -1,9 +1,12 @@
 const CostOverhead = require('../models/Costoverhead');
+const Project = require('../models/Project')
 
 // Get all overheads for a project
 exports.getOverheads = async (req, res) => {
   try {
     const { projectId } = req.params;
+    console.log("projectId",projectId);
+    
     const overheads = await CostOverhead.find({ projectId }).sort({ createdAt: -1 });
     res.status(200).json(overheads);
   } catch (error) {
@@ -12,21 +15,53 @@ exports.getOverheads = async (req, res) => {
 };
 
 // Create new overhead
+// Create a new empty overhead
 exports.createOverhead = async (req, res) => {
-  try {
-    const { projectId, overheadComponent, description } = req.body;
-    
-    const newOverhead = new CostOverhead({
-      projectId,
-      overheadComponent,
-      description
-    });
+    try {
+        // Validate request body
+        if (!req.body.projectId) {
+            return res.status(400).json({
+                success: false,
+                message: 'projectId is required'
+            });
+        }
 
-    await newOverhead.save();
-    res.status(201).json(newOverhead);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating overhead', error: error.message });
-  }
+        // Verify project exists (optional but recommended)
+        const projectExists = await Project.exists({ projectId: req.body.projectId });
+        if (!projectExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found'
+            });
+        }
+
+        // Create new overhead with empty values
+        const newOverhead = new CostOverhead({
+            projectId: req.body.projectId,
+            overheadComponent: req.body.overheadComponent || 'a',
+            description: req.body.description || '',
+            subheads: req.body.subheads || []
+        });
+
+        // Validate before saving
+        await newOverhead.validate();
+        
+        // Save to database
+        const savedOverhead = await newOverhead.save();
+        
+        res.status(201).json({
+            success: true,
+            data: savedOverhead
+        });
+    } catch (error) {
+        console.error('Error creating overhead:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating new overhead',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
 };
 
 // Update overhead

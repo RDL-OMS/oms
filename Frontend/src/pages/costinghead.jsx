@@ -1,71 +1,110 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const CostingHead = () => {
-  console.log('CostingHead component is rendering');
-
-  // Get the project ID from the URL
-  const { id,projectName} = useParams();
-  console.log('Project ID from URL:', id);
-
-  // Hardcode project names for now based on ID
-  
-  // const projectName = projectNames[id] || 'Unknown Project';
-  console.log('Project Name:', projectName);
-
+  const location = useLocation();
+  const { projectId, projectName } = location.state || {};
   const [costingData, setCostingData] = useState([]);
-  console.log('Costing Data:', costingData);
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({
     overheadComponent: '',
     description: '',
   });
-
   const [subheadModalOpen, setSubheadModalOpen] = useState(false);
   const [currentRowId, setCurrentRowId] = useState(null);
   const [subheadInput, setSubheadInput] = useState('');
 
-  const handleAddNewRow = () => {
-    const newRow = {
-      id: costingData.length + 1,
-      overheadComponent: '',
-      description: '',
-      subheads: [],
+  // Fetch overheads from database
+  useEffect(() => {
+    const fetchOverheads = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/overheads/get/${projectId}`);
+        if (!response.ok) throw new Error('Failed to fetch overheads');
+        const data = await response.json();
+        setCostingData(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
-    setCostingData([...costingData, newRow]);
-    setEditId(newRow.id);
-    setEditData({
-      overheadComponent: '',
-      description: '',
-    });
+
+    if (projectId) fetchOverheads();
+  }, [projectId]);
+
+  const handleAddNewRow = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/overheads/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          overheadComponent: '',
+          description: '',
+          subheads: []
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to create overhead');
+      
+      const newOverhead = await response.json();
+      setCostingData([...costingData, newOverhead]);
+      setEditId(newOverhead._id);
+      setEditData({
+        overheadComponent: '',
+        description: ''
+      });
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setEditData({ ...editData, [name]: value });
+    setEditData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = (id) => {
-    const updatedData = costingData.map((item) =>
-      item.id === id ? { ...item, ...editData } : item
-    );
-    setCostingData(updatedData);
-    setEditId(null);
+  const handleSave = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/overheads/update/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData)
+      });
+
+      if (!response.ok) throw new Error('Failed to update overhead');
+      
+      const updatedOverhead = await response.json();
+      setCostingData(costingData.map(o => o._id === id ? updatedOverhead : o));
+      setEditId(null);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const handleEdit = (id) => {
-    const item = costingData.find((item) => item.id === id);
+    const item = costingData.find(item => item._id === id);
     setEditId(id);
     setEditData({
       overheadComponent: item.overheadComponent || '',
-      description: item.description || '',
+      description: item.description || ''
     });
   };
 
-  const handleDelete = (id) => {
-    const updatedData = costingData.filter((item) => item.id !== id);
-    setCostingData(updatedData);
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/overheads/delete/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete overhead');
+      
+      setCostingData(costingData.filter(item => item._id !== id));
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const handleOpenSubheadModal = (id) => {
@@ -80,21 +119,32 @@ const CostingHead = () => {
     setSubheadInput('');
   };
 
-  const handleAddSubhead = () => {
-    if (subheadInput.trim() === '') return;
+  const handleAddSubhead = async () => {
+    if (!subheadInput.trim()) return;
 
-    const updatedData = costingData.map((item) => {
-      if (item.id === currentRowId) {
-        return {
-          ...item,
-          subheads: [...(item.subheads || []), subheadInput.trim()],
-        };
-      }
-      return item;
-    });
-    setCostingData(updatedData);
-    setSubheadInput('');
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/overheads/${currentRowId}/subheads`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: subheadInput.trim() })
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to add subhead');
+      
+      const updatedOverhead = await response.json();
+      setCostingData(costingData.map(o => o._id === currentRowId ? updatedOverhead : o));
+      setSubheadInput('');
+      setSubheadModalOpen(false);
+    } catch (err) {
+      setError(err.message);
+    }
   };
+
+  if (loading) return <div className="p-6">Loading overheads...</div>;
+  if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
@@ -120,16 +170,13 @@ const CostingHead = () => {
               </tr>
             ) : (
               costingData.map((item, index) => {
-                const isSubheadEnabled =
-                  editId === item.id
-                    ? editData.overheadComponent.trim() !== ''
-                    : item.overheadComponent && item.overheadComponent.trim() !== '';
+                const isSubheadEnabled = item.overheadComponent?.trim() !== '';
 
                 return (
-                  <tr key={item.id} className="border-b hover:bg-gray-50">
+                  <tr key={item._id} className="border-b hover:bg-gray-50">
                     <td className="p-3 text-left">{index + 1}</td>
                     <td className="p-3 text-left">
-                      {editId === item.id ? (
+                      {editId === item._id ? (
                         <input
                           type="text"
                           name="overheadComponent"
@@ -145,7 +192,7 @@ const CostingHead = () => {
                       )}
                     </td>
                     <td className="p-3 text-left">
-                      {editId === item.id ? (
+                      {editId === item._id ? (
                         <input
                           type="text"
                           name="description"
@@ -165,7 +212,7 @@ const CostingHead = () => {
                         <ul className="list-disc pl-5">
                           {item.subheads.map((subhead, idx) => (
                             <li key={idx} className="text-gray-700">
-                              {subhead}
+                              {subhead.name || subhead}
                             </li>
                           ))}
                         </ul>
@@ -174,23 +221,23 @@ const CostingHead = () => {
                       )}
                     </td>
                     <td className="p-3 text-center">
-                      {editId === item.id ? (
+                      {editId === item._id ? (
                         <button
-                          onClick={() => handleSave(item.id)}
+                          onClick={() => handleSave(item._id)}
                           className="text-green-500 hover:text-green-700 mr-4"
                         >
                           Save
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleEdit(item.id)}
+                          onClick={() => handleEdit(item._id)}
                           className="text-blue-500 hover:text-blue-700 mr-4"
                         >
                           Edit
                         </button>
                       )}
                       <button
-                        onClick={() => handleOpenSubheadModal(item.id)}
+                        onClick={() => handleOpenSubheadModal(item._id)}
                         className={`mr-4 ${
                           isSubheadEnabled
                             ? 'text-purple-500 hover:text-purple-700'
@@ -201,7 +248,7 @@ const CostingHead = () => {
                         Subhead
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => handleDelete(item._id)}
                         className="text-red-500 hover:text-red-700"
                       >
                         Delete
@@ -249,15 +296,15 @@ const CostingHead = () => {
                 Close
               </button>
             </div>
-            {currentRowId && costingData.find((item) => item.id === currentRowId)?.subheads?.length > 0 && (
+            {currentRowId && costingData.find((item) => item._id === currentRowId)?.subheads?.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-medium">Existing Subheads:</h3>
                 <ul className="list-disc pl-5">
                   {costingData
-                    .find((item) => item.id === currentRowId)
+                    .find((item) => item._id === currentRowId)
                     .subheads.map((subhead, idx) => (
                       <li key={idx} className="text-gray-700">
-                        {subhead}
+                        {subhead.name || subhead}
                       </li>
                     ))}
                 </ul>
