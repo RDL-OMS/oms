@@ -1,19 +1,9 @@
-// File: backend/src/models/Project.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const ProjectSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true
-    },
-    description: {
-        type: String,
-        required: true
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
+  projectId: { type: String, required: true, unique: true },
+  projectName: { type: String, required: true },
+  projectDescription: { type: String, required: true },
 });
 
-module.exports = mongoose.model('Project', ProjectSchema);
+module.exports = mongoose.model("Project", ProjectSchema);
