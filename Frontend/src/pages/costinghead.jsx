@@ -20,12 +20,41 @@ const CostingHead = () => {
   useEffect(() => {
     const fetchOverheads = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const response = await fetch(`http://localhost:5000/api/overheads/get/${projectId}`);
-        if (!response.ok) throw new Error('Failed to fetch overheads');
-        const data = await response.json();
-        setCostingData(data);
+        console.log("overheads",response);
+        
+        
+        if (!response.ok) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        
+        
+        // Handle both { data } and direct array responses
+        const data = result.data || result;
+        
+        if (!Array.isArray(data)) {
+          throw new Error('Expected array data but received:', data);
+        }
+        
+        // Ensure all items have required fields
+        const validatedData = data.map(item => ({
+          _id: item._id || Math.random().toString(36).substring(2, 9),
+          overheadComponent: item.overheadComponent || '',
+          description: item.description || '',
+          subheads: Array.isArray(item.subheads) ? item.subheads : []
+        }));
+        
+        
+        
+        setCostingData(validatedData);
       } catch (err) {
         setError(err.message);
+        setCostingData([]);
       } finally {
         setLoading(false);
       }
@@ -36,6 +65,7 @@ const CostingHead = () => {
 
   const handleAddNewRow = async () => {
     try {
+      setError(null);
       const response = await fetch('http://localhost:5000/api/overheads/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,11 +77,23 @@ const CostingHead = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to create overhead');
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
       
-      const newOverhead = await response.json();
-      setCostingData([...costingData, newOverhead]);
-      setEditId(newOverhead._id);
+      const result = await response.json();
+      const newItem = result.data || result;
+      
+      if (!newItem._id) {
+        throw new Error('New item missing required _id field');
+      }
+      
+      setCostingData(prev => [...prev, {
+        _id: newItem._id,
+        overheadComponent: newItem.overheadComponent || '',
+        description: newItem.description || '',
+        subheads: newItem.subheads || []
+      }]);
+      
+      setEditId(newItem._id);
       setEditData({
         overheadComponent: '',
         description: ''
@@ -68,16 +110,25 @@ const CostingHead = () => {
 
   const handleSave = async (id) => {
     try {
+      setError(null);
       const response = await fetch(`http://localhost:5000/api/overheads/update/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData)
       });
 
-      if (!response.ok) throw new Error('Failed to update overhead');
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
       
-      const updatedOverhead = await response.json();
-      setCostingData(costingData.map(o => o._id === id ? updatedOverhead : o));
+      const result = await response.json();
+      const updatedItem = result.data || result;
+      
+      setCostingData(prev => 
+        prev.map(item => item._id === id ? {
+          ...item,
+          overheadComponent: updatedItem.overheadComponent || item.overheadComponent,
+          description: updatedItem.description || item.description
+        } : item)
+      );
       setEditId(null);
     } catch (err) {
       setError(err.message);
@@ -86,6 +137,11 @@ const CostingHead = () => {
 
   const handleEdit = (id) => {
     const item = costingData.find(item => item._id === id);
+    if (!item) {
+      setError('Item not found for editing');
+      return;
+    }
+    
     setEditId(id);
     setEditData({
       overheadComponent: item.overheadComponent || '',
@@ -95,13 +151,14 @@ const CostingHead = () => {
 
   const handleDelete = async (id) => {
     try {
+      setError(null);
       const response = await fetch(`http://localhost:5000/api/overheads/delete/${id}`, {
         method: 'DELETE'
       });
 
-      if (!response.ok) throw new Error('Failed to delete overhead');
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
       
-      setCostingData(costingData.filter(item => item._id !== id));
+      setCostingData(prev => prev.filter(item => item._id !== id));
     } catch (err) {
       setError(err.message);
     }
@@ -120,9 +177,13 @@ const CostingHead = () => {
   };
 
   const handleAddSubhead = async () => {
-    if (!subheadInput.trim()) return;
+    if (!subheadInput.trim()) {
+      setError('Subhead cannot be empty');
+      return;
+    }
 
     try {
+      setError(null);
       const response = await fetch(
         `http://localhost:5000/api/overheads/${currentRowId}/subheads`,
         {
@@ -132,10 +193,18 @@ const CostingHead = () => {
         }
       );
 
-      if (!response.ok) throw new Error('Failed to add subhead');
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
       
-      const updatedOverhead = await response.json();
-      setCostingData(costingData.map(o => o._id === currentRowId ? updatedOverhead : o));
+      const result = await response.json();
+      const updatedItem = result.data || result;
+      
+      setCostingData(prev => 
+        prev.map(item => item._id === currentRowId ? {
+          ...item,
+          subheads: updatedItem.subheads || [...(item.subheads || []), { name: subheadInput.trim() }]
+        } : item)
+      );
+      
       setSubheadInput('');
       setSubheadModalOpen(false);
     } catch (err) {
@@ -143,12 +212,31 @@ const CostingHead = () => {
     }
   };
 
-  if (loading) return <div className="p-6">Loading overheads...</div>;
-  if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="p-6">
+      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+        <p>Error: {error}</p>
+        <button 
+          onClick={() => setError(null)}
+          className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">{projectName}</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-4">
+        {projectName || 'Untitled Project'}
+      </h1>
 
       <div className="overflow-x-auto">
         <table className="w-full bg-white shadow-md rounded-lg">
@@ -184,6 +272,7 @@ const CostingHead = () => {
                           onChange={handleInputChange}
                           className="border p-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Enter Overhead Component"
+                          required
                         />
                       ) : (
                         item.overheadComponent || (
@@ -208,7 +297,7 @@ const CostingHead = () => {
                       )}
                     </td>
                     <td className="p-3 text-left">
-                      {item.subheads && item.subheads.length > 0 ? (
+                      {item.subheads?.length > 0 ? (
                         <ul className="list-disc pl-5">
                           {item.subheads.map((subhead, idx) => (
                             <li key={idx} className="text-gray-700">
@@ -281,6 +370,7 @@ const CostingHead = () => {
               onChange={(e) => setSubheadInput(e.target.value)}
               className="border p-2 rounded w-full mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Enter subhead"
+              required
             />
             <div className="flex justify-end space-x-2">
               <button
@@ -302,7 +392,7 @@ const CostingHead = () => {
                 <ul className="list-disc pl-5">
                   {costingData
                     .find((item) => item._id === currentRowId)
-                    .subheads.map((subhead, idx) => (
+                    ?.subheads?.map((subhead, idx) => (
                       <li key={idx} className="text-gray-700">
                         {subhead.name || subhead}
                       </li>

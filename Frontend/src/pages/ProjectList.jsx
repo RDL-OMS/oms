@@ -124,7 +124,7 @@ const ProjectList = () => {
                     className="border rounded px-2 py-1 w-full"
                   />
                 ) : (
-                  <button onClick={() => navigate(`/project-details/${project._id}`, { state: { project } })}
+                  <button onClick={() => navigate(`/projectdetails/${project.projectId}`, { state: { project } })}
                     className="text-blue-500 hover:underline font-medium">
                     {project.name}
                   </button>

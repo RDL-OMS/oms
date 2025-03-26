@@ -9,12 +9,12 @@ router.get('/get/:projectId', costOverheadController.getOverheads);
 router.post('/new', costOverheadController.createOverhead);
 
 // Update overhead
-router.put('/overheads/add/:id', costOverheadController.updateOverhead);
+router.put('/update/:id', costOverheadController.updateOverhead);
 
 // Delete overhead
-router.delete('/overheads/:id', costOverheadController.deleteOverhead);
+router.delete('/delete/:id', costOverheadController.deleteOverhead);
 
 // Add subhead
-router.post('/overheads/:id/subheads', costOverheadController.addSubhead);
+router.post('/:id/subheads', costOverheadController.addSubhead);
 
 module.exports = router;
