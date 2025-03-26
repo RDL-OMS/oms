@@ -1,10 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const Project = require('../models/Project');
+const projectController = require('../controllers/projectController');
 
-router.get('/', async (req, res) => {
-    const projects = await Project.find();
-    res.json(projects);
-});
+// Get all projects
+router.get('/getprojects', projectController.getProjects);
+
+// Create a new project
+router.post('/createproject', projectController.createProject);
+
+// Get single project
+router.get('/getproject/:id', projectController.getProjectById);
+
+// Update a project
+router.put('/updateproject/:id', projectController.updateProject);
+
+// Delete a project
+router.delete('/deleteproject/:id', projectController.deleteProject);
 
 module.exports = router;

@@ -1,9 +1,36 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const ProjectSchema = new mongoose.Schema({
-  projectId: { type: String, required: true, unique: true },
-  projectName: { type: String, required: true },
-  projectDescription: { type: String, required: true },
+const projectSchema = new mongoose.Schema({
+  projectId: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-module.exports = mongoose.model("Project", ProjectSchema);
+// Update the updatedAt field before saving
+projectSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+module.exports = mongoose.model('Project', projectSchema);

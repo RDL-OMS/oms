@@ -1,20 +1,47 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import './pages.css'
+import './pages.css';
 
 const AddProject = () => {
-  const [projectId, setProjectId] = useState("");
-  const [projectName, setProjectName] = useState("");
-  const [projectDesc, setProjectDesc] = useState("");
+  const [formData, setFormData] = useState({
+    projectId: "",
+    name: "",
+    description: ""
+  });
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Project Added:", { projectId, projectName, projectDesc });
+    setError(null);
+    setIsSubmitting(true);
 
-    // Here you can add API call to save the project details
+    try {
+      const response = await fetch('http://localhost:5000/api/projects/createproject', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-    navigate("/"); // Redirect back to dashboard
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add project');
+      }
+
+      navigate("/ProjectList", { state: { success: 'Project added successfully!' } });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -23,6 +50,13 @@ const AddProject = () => {
         <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
           Add New Project
         </h2>
+        
+        {error && (
+          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 font-medium mb-1">
@@ -30,9 +64,10 @@ const AddProject = () => {
             </label>
             <input
               type="text"
+              name="projectId"
               className="w-full p-2 border border-gray-300 rounded-md"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
+              value={formData.projectId}
+              onChange={handleChange}
               required
             />
           </div>
@@ -42,9 +77,10 @@ const AddProject = () => {
             </label>
             <input
               type="text"
+              name="name"
               className="w-full p-2 border border-gray-300 rounded-md"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              value={formData.name}
+              onChange={handleChange}
               required
             />
           </div>
@@ -53,17 +89,19 @@ const AddProject = () => {
               Project Description
             </label>
             <textarea
+              name="description"
               className="w-full p-2 border border-gray-300 rounded-md"
-              value={projectDesc}
-              onChange={(e) => setProjectDesc(e.target.value)}
+              value={formData.description}
+              onChange={handleChange}
               required
             ></textarea>
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-md"
+            className={`w-full py-2 rounded-md ${isSubmitting ? 'bg-blue-400' : 'bg-blue-500'} text-white`}
+            disabled={isSubmitting}
           >
-            Add Project
+            {isSubmitting ? 'Adding...' : 'Add Project'}
           </button>
         </form>
       </div>

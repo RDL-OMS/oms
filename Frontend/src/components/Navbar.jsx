@@ -38,7 +38,7 @@ const Navbar = ({ onSidebarToggle }) => {
         </button>
         
         <button 
-          onClick={() => navigate("/projects")}
+          onClick={() => navigate("/ProjectList")}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded text-white"
         >
           <Folder size={18} />

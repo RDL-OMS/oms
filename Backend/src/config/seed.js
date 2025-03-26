@@ -31,25 +31,30 @@ const sampleUsers = [
 // Sample projects for seeding
 const sampleProjects = [
   {
-    projectId: "P001",
-    projectName: "AI-Based Ticket Verification",
-    projectDescription: "A system that detects passengers without tickets using facial recognition.",
+    projectId: 'PROJ-001',
+    name: "E-Commerce Platform",
+    description: "Development of a full-stack e-commerce website with React and Node.js"
   },
   {
-    projectId: "P002",
-    projectName: "Smart Water Management",
-    projectDescription: "A real-time water usage monitoring and leakage detection system.",
+    projectId: 'PROJ-002',
+    name: "Mobile Banking App",
+    description: "iOS and Android application for online banking services"
   },
   {
-    projectId: "P003",
-    projectName: "Network Intrusion Detection",
-    projectDescription: "AI-powered system to detect and prevent unauthorized network access.",
+    projectId: 'PROJ-003',
+    name: "Inventory Management System",
+    description: "Enterprise solution for tracking inventory across multiple warehouses"
   },
   {
-    projectId: "P004",
-    projectName: "Automated Attendance System",
-    projectDescription: "Uses facial recognition to mark student attendance in real time.",
+    projectId: 'PROJ-004',
+    name: "Healthcare Portal",
+    description: "Patient management system for clinics and hospitals"
   },
+  {
+    projectId: 'PROJ-005',
+    name: "Smart Home Automation",
+    description: "IoT platform for controlling home devices remotely"
+  }
 ];
 
 // Connect to MongoDB
