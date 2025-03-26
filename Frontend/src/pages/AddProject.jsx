@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import './pages.css'
 
 const AddProject = () => {
+  const [projectId, setProjectId] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectDesc, setProjectDesc] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Project Added:", { projectName, projectDesc });
+    console.log("Project Added:", { projectId, projectName, projectDesc });
 
     // Here you can add API call to save the project details
 
@@ -23,6 +24,18 @@ const AddProject = () => {
           Add New Project
         </h2>
         <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-gray-700 font-medium mb-1">
+              Project ID
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded-md"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              required
+            />
+          </div>
           <div className="mb-4">
             <label className="block text-gray-700 font-medium mb-1">
               Project Name

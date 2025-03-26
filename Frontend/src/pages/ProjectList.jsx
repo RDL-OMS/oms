@@ -22,6 +22,7 @@ const ProjectList = () => {
         <thead>
           <tr className="bg-gray-200">
             <th className="p-3 text-left">S.No</th>
+            <th className="p-3 text-left">Project ID</th> {/* New Column */}
             <th className="p-3 text-left">Project Name</th>
             <th className="p-3 text-left">Project Description</th>
             <th className="p-3 text-left">Overhead</th>
@@ -32,6 +33,7 @@ const ProjectList = () => {
           {projects.map((project, index) => (
             <tr key={project.id} className="border-b">
               <td className="p-3">{index + 1}</td>
+              <td className="p-3">{project.id}</td> {/* Project ID Column */}
               <td className="p-3">
                 <button
                   onClick={() => navigate(`/project/${project.id}`)}
