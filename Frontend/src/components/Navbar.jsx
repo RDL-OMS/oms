@@ -23,37 +23,40 @@ const Navbar = ({ onSidebarToggle }) => {
       </button>
 
       {/* Title */}
-      <span className="text-xl font-bold flex-1 text-center md:text-left ml-4">
+      <span
+        className="text-xl font-bold flex-1 text-center md:text-left ml-4 cursor-pointer"
+        onClick={() => navigate("/dashboard")}
+      >
         Overhead Management System
       </span>
 
       {/* Action Buttons */}
       <div className="flex gap-4">
-        <button 
+        <button
           onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded text-white"
         >
           <Home size={18} />
           <span>Home</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={() => navigate("/ProjectList")}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded text-white"
         >
           <Folder size={18} />
           <span>Projects</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={() => navigate("/add-project")}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white"
         >
           <Plus size={18} />
           <span>Add Project</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={handleLogout}
           className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white"
         >

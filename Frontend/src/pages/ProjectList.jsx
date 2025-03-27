@@ -54,24 +54,24 @@ const ProjectList = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editedProject),
       });
-  
+
       if (!response.ok) throw new Error('Failed to update project');
-  
+
       // Reset editing state
       setEditingProjectId(null);
-      
+
       // Force reload of projects by resetting loading state
       setLoading(true);
       setProjects([]);
-      
+
       // Refetch projects
       const refreshResponse = await fetch('http://localhost:5000/api/projects/getprojects');
       if (!refreshResponse.ok) throw new Error('Failed to refresh projects');
-      
+
       const data = await refreshResponse.json();
       const sortedProjects = data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       setProjects(sortedProjects);
-      
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -124,7 +124,12 @@ const ProjectList = () => {
                     className="border rounded px-2 py-1 w-full"
                   />
                 ) : (
-                  <button onClick={() => navigate(`/projectdetails/${project.projectId}`, { state: { project } })}
+                  <button onClick={() => navigate(`/projectdetails`, {
+                    state: {
+                      projectId: project.projectId,
+                      project: project
+                    }
+                  })}
                     className="text-blue-500 hover:underline font-medium">
                     {project.name}
                   </button>
@@ -154,7 +159,7 @@ const ProjectList = () => {
                 >
                   Overhead
                 </button>
-                
+
                 {editingProjectId === project._id ? (
                   <button
                     onClick={handleSave}

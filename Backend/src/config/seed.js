@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const Project = require("../models/Project");
 const CostOverhead = require("../models/Costoverhead");
+const CostEntry = require("../models/Costentry"); // Make sure you have this model
 
 console.log("MongoDB URI:", process.env.MONGO_URI);
 
@@ -112,6 +113,69 @@ const sampleOverheadsPROJ002 = [
   }
 ];
 
+// Sample cost entries for PROJ-001
+const sampleCostEntriesPROJ001 = [
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Development",
+    subhead: "Frontend Development",
+    description: "React components implementation",
+    expectedCost: 15000,
+    actualCost: 14500,
+    variance: -3.33,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Development",
+    subhead: "Backend Development",
+    description: "API development with Node.js",
+    expectedCost: 20000,
+    actualCost: 21000,
+    variance: 5.00,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Hosting",
+    subhead: "AWS Services",
+    description: "EC2 instances for production",
+    expectedCost: 5000,
+    actualCost: 5200,
+    variance: 4.00,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+// Sample cost entries for PROJ-002
+const sampleCostEntriesPROJ002 = [
+  {
+    projectId: "PROJ-002",
+    overheadComponent: "Security",
+    subhead: "Encryption",
+    description: "Data encryption implementation",
+    expectedCost: 8000,
+    actualCost: 7500,
+    variance: -6.25,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    projectId: "PROJ-002",
+    overheadComponent: "Compliance",
+    subhead: "PCI DSS Compliance",
+    description: "Compliance certification costs",
+    expectedCost: 12000,
+    actualCost: 12500,
+    variance: 4.17,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -127,6 +191,7 @@ const seedDatabase = async () => {
     await User.deleteMany();
     await Project.deleteMany();
     await CostOverhead.deleteMany();
+    await CostEntry.deleteMany();
     console.log("Existing data cleared");
 
     // Seed sample users
@@ -153,6 +218,14 @@ const seedDatabase = async () => {
     // Seed overheads for PROJ-002
     await CostOverhead.insertMany(sampleOverheadsPROJ002);
     console.log("Overheads for PROJ-002 seeded");
+
+    // Seed cost entries for PROJ-001
+    await CostEntry.insertMany(sampleCostEntriesPROJ001);
+    console.log("Cost entries for PROJ-001 seeded");
+
+    // Seed cost entries for PROJ-002
+    await CostEntry.insertMany(sampleCostEntriesPROJ002);
+    console.log("Cost entries for PROJ-002 seeded");
 
     mongoose.connection.close();
     console.log("Seeding complete");

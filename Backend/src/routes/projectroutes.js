@@ -16,6 +16,7 @@ router.put('/updateproject/:id', projectController.updateProject);
 
 // Delete a project
 router.delete('/deleteproject/:id', projectController.deleteProject);
-
+//get cost entries by id
+router.get('/cost-entries/:id',projectController.getCostentriesID)
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const Project = require('../models/Project');
+const CostEntry=require('../models/Costentry')
 
 // Get all projects
 exports.getProjects = async (req, res) => {
@@ -112,5 +113,39 @@ exports.getProjectById = async (req, res) => {
     res.status(200).json(project);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching project', error: error.message });
+  }
+};
+
+
+// Properly export the function
+exports.getCostentriesID= async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const costEntries = await CostEntry.find({ projectId: id })
+      .select('overheadComponent subhead description expectedCost actualCost variance')
+      .lean();
+
+    if (!costEntries || costEntries.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const formattedEntries = costEntries.map((entry, index) => ({
+      id: index + 1,
+      overhead: entry.overheadComponent || "",
+      subhead: entry.subhead || "",
+      description: entry.description || "",
+      expectedCost: entry.expectedCost?.toString() || "0",
+      actualCost: entry.actualCost?.toString() || "0",
+      variance: entry.variance?.toString() || "0"
+    }));
+
+    res.status(200).json(formattedEntries);
+  } catch (error) {
+    console.error("Error fetching cost entries:", error.message);
+    res.status(500).json({ 
+      message: 'Error fetching cost entries', 
+      error: error.message 
+    });
   }
 };
