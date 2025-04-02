@@ -148,6 +148,8 @@ import MemberDashboard from "./pages/member/Dashboard";
 import Navbar from "./components/Navbar"
 import ProjectList from "./pages/ProjectList"
 import UserManagement from "./pages/owner/Usermanagement";
+import CostingHead from "./pages/Costinghead";
+import ProjectDetails from "./pages/ProjectDetails";
 
 function App() {
   return (
@@ -178,6 +180,23 @@ function App() {
             <ProtectedRoute allowedRoles={['owner']}>
               <Navbar />
               <ProjectList />
+            </ProtectedRoute>
+          } />
+
+
+          <Route path="/projectdetails" element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <Navbar />
+              <ProjectDetails />
+            </ProtectedRoute>
+          } />
+
+
+
+          <Route path="/costinghead" element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <Navbar />
+              <CostingHead />
             </ProtectedRoute>
           } />
 

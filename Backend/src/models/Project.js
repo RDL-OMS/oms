@@ -17,19 +17,24 @@ const projectSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  createdBy: {  // NEW: Track who created the project
+  createdBy: {  
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  teamLead: {  // NEW: Track assigned team lead
+  teamLead: {  
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  members: [{  // NEW: Track team members
+  members: [{  
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  budget: {  // NEW: Budget field (Number)
+    type: Number,
+    required: true,
+    default: 0 // Default value set to 0 if not provided
+  },
   createdAt: {
     type: Date,
     default: Date.now

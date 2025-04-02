@@ -69,6 +69,7 @@ exports.getProjects = async (req, res) => {
         description: project.description,
         updatedAt: project.updatedAt,
         teamLead: project.teamLead,
+        budget:project.budget,
         members: project.members
       }))
     };
@@ -241,9 +242,11 @@ exports.getProjectById = async (req, res) => {
 exports.getCostentriesID = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log("IDDDD",id);
+    
 
     // First check project access
-    const project = await Project.findById(id);
+    const project = await Project.findOne({projectId:id});
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }

@@ -17,4 +17,6 @@ router.delete('/delete/:id', costOverheadController.deleteOverhead);
 // Add subhead
 router.post('/:id/subheads', costOverheadController.addSubhead);
 
+router.delete('/:id/subheads',costOverheadController.deleteSubhead)
+
 module.exports = router;

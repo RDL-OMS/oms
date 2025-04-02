@@ -29,7 +29,7 @@
 
 const express = require('express');
 const router = express.Router();
-const projectController = require('../controllers/projectController');
+const projectController = require('../controllers/projectcontroller');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Apply auth middleware to all project routes
@@ -51,7 +51,7 @@ router.put('/:id', projectController.updateProject); // More RESTful URL
 router.delete('/:id', projectController.deleteProject); // More RESTful URL
 
 // Get cost entries by id
-router.get('/:id/cost-entries', projectController.getCostentriesID); // Better REST structure
+router.get('/cost-entries/:id', projectController.getCostentriesID); // Better REST structure
 
 router.get('/getProjects/:id/:role',projectController.getProjectsUM)
 

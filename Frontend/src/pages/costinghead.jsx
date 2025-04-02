@@ -15,6 +15,11 @@ const CostingHead = () => {
   const [subheadModalOpen, setSubheadModalOpen] = useState(false);
   const [currentRowId, setCurrentRowId] = useState(null);
   const [subheadInput, setSubheadInput] = useState('');
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [showSubheadDeleteConfirm, setShowSubheadDeleteConfirm] = useState(false);
+  const [subheadToDelete, setSubheadToDelete] = useState(null);
 
   // Fetch overheads from database
   useEffect(() => {
@@ -23,34 +28,25 @@ const CostingHead = () => {
         setLoading(true);
         setError(null);
         const response = await fetch(`http://localhost:5000/api/overheads/get/${projectId}`);
-        console.log("overheads",response);
-        
-        
+
         if (!response.ok) {
           throw new Error(`Server responded with status ${response.status}`);
         }
-        
+
         const result = await response.json();
-        
-        
-        
-        // Handle both { data } and direct array responses
         const data = result.data || result;
-        
+
         if (!Array.isArray(data)) {
           throw new Error('Expected array data but received:', data);
         }
-        
-        // Ensure all items have required fields
+
         const validatedData = data.map(item => ({
           _id: item._id || Math.random().toString(36).substring(2, 9),
           overheadComponent: item.overheadComponent || '',
           description: item.description || '',
           subheads: Array.isArray(item.subheads) ? item.subheads : []
         }));
-        
-        
-        
+
         setCostingData(validatedData);
       } catch (err) {
         setError(err.message);
@@ -78,21 +74,21 @@ const CostingHead = () => {
       });
 
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-      
+
       const result = await response.json();
       const newItem = result.data || result;
-      
+
       if (!newItem._id) {
         throw new Error('New item missing required _id field');
       }
-      
+
       setCostingData(prev => [...prev, {
         _id: newItem._id,
         overheadComponent: newItem.overheadComponent || '',
         description: newItem.description || '',
         subheads: newItem.subheads || []
       }]);
-      
+
       setEditId(newItem._id);
       setEditData({
         overheadComponent: '',
@@ -108,22 +104,29 @@ const CostingHead = () => {
     setEditData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async (id) => {
+  const handleSaveClick = () => {
+    setShowSaveConfirm(true);
+  };
+
+  const handleSaveConfirm = async (confirmed) => {
+    setShowSaveConfirm(false);
+    if (!confirmed || !editId) return;
+
     try {
       setError(null);
-      const response = await fetch(`http://localhost:5000/api/overheads/update/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/overheads/update/${editId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData)
       });
 
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-      
+
       const result = await response.json();
       const updatedItem = result.data || result;
-      
-      setCostingData(prev => 
-        prev.map(item => item._id === id ? {
+
+      setCostingData(prev =>
+        prev.map(item => item._id === editId ? {
           ...item,
           overheadComponent: updatedItem.overheadComponent || item.overheadComponent,
           description: updatedItem.description || item.description
@@ -141,7 +144,7 @@ const CostingHead = () => {
       setError('Item not found for editing');
       return;
     }
-    
+
     setEditId(id);
     setEditData({
       overheadComponent: item.overheadComponent || '',
@@ -149,18 +152,28 @@ const CostingHead = () => {
     });
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteClick = (id) => {
+    setItemToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async (confirmed) => {
+    setShowDeleteConfirm(false);
+    if (!confirmed || !itemToDelete) return;
+
     try {
       setError(null);
-      const response = await fetch(`http://localhost:5000/api/overheads/delete/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/overheads/delete/${itemToDelete}`, {
         method: 'DELETE'
       });
 
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-      
-      setCostingData(prev => prev.filter(item => item._id !== id));
+
+      setCostingData(prev => prev.filter(item => item._id !== itemToDelete));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setItemToDelete(null);
     }
   };
 
@@ -194,21 +207,65 @@ const CostingHead = () => {
       );
 
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-      
+
       const result = await response.json();
       const updatedItem = result.data || result;
-      
-      setCostingData(prev => 
+
+      setCostingData(prev =>
         prev.map(item => item._id === currentRowId ? {
           ...item,
           subheads: updatedItem.subheads || [...(item.subheads || []), { name: subheadInput.trim() }]
         } : item)
       );
-      
+
       setSubheadInput('');
-      setSubheadModalOpen(false);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleDeleteSubheadClick = (subheadName) => {
+    setSubheadToDelete(subheadName);
+    setSubheadModalOpen(false);
+    setShowSubheadDeleteConfirm(true);
+  };
+
+  const handleDeleteSubheadConfirm = async (confirmed) => {
+    setShowSubheadDeleteConfirm(false);
+    if (!confirmed || !subheadToDelete || !currentRowId) {
+      setSubheadModalOpen(true);
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await fetch(
+        `http://localhost:5000/api/overheads/${currentRowId}/subheads`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: subheadToDelete })
+        }
+      );
+
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+
+      const result = await response.json();
+      const updatedItem = result.data || result;
+
+      setCostingData(prev =>
+        prev.map(item => item._id === currentRowId ? {
+          ...item,
+          subheads: updatedItem.subheads || (item.subheads || []).filter(sh => sh.name !== subheadToDelete)
+        } : item)
+      );
+
+      setSubheadModalOpen(true);
+    } catch (err) {
+      setError(err.message);
+      setSubheadModalOpen(true);
+    } finally {
+      setSubheadToDelete(null);
     }
   };
 
@@ -222,7 +279,7 @@ const CostingHead = () => {
     <div className="p-6">
       <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
         <p>Error: {error}</p>
-        <button 
+        <button
           onClick={() => setError(null)}
           className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
         >
@@ -237,6 +294,138 @@ const CostingHead = () => {
       <h1 className="text-2xl font-bold text-gray-800 mb-4">
         {projectName || 'Untitled Project'}
       </h1>
+
+      {/* Save Confirmation Modal */}
+      {showSaveConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Save</h3>
+            <p className="mb-6">Are you sure you want to save these changes?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => handleSaveConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveConfirm(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="mb-6">Are you sure you want to delete this overhead component? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => handleDeleteConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirm(true)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subhead Delete Confirmation Modal */}
+      {showSubheadDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-70">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Subhead Deletion</h3>
+            <p className="mb-6">Are you sure you want to delete the subhead "{subheadToDelete}"?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => handleDeleteSubheadConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteSubheadConfirm(true)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subhead Management Modal */}
+      {subheadModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Manage Subheads</h2>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Add New Subhead:</label>
+              <div className="flex">
+                <input
+                  type="text"
+                  value={subheadInput}
+                  onChange={(e) => setSubheadInput(e.target.value)}
+                  className="border p-2 rounded-l w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Enter subhead name"
+                  required
+                />
+                <button
+                  onClick={handleAddSubhead}
+                  className="bg-green-500 text-white px-4 py-2 rounded-r hover:bg-green-600 transition-colors duration-200"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {currentRowId && costingData.find((item) => item._id === currentRowId)?.subheads?.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium mb-2">Existing Subheads:</h3>
+                <ul className="border rounded divide-y">
+                  {costingData
+                    .find((item) => item._id === currentRowId)
+                    ?.subheads?.map((subhead, idx) => (
+                      <li key={idx} className="p-2 flex justify-between items-center">
+                        <span className="text-gray-700">
+                          {subhead.name || subhead}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteSubheadClick(subhead.name || subhead)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handleCloseSubheadModal}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full bg-white shadow-md rounded-lg">
@@ -312,7 +501,7 @@ const CostingHead = () => {
                     <td className="p-3 text-center">
                       {editId === item._id ? (
                         <button
-                          onClick={() => handleSave(item._id)}
+                          onClick={handleSaveClick}
                           className="text-green-500 hover:text-green-700 mr-4"
                         >
                           Save
@@ -327,17 +516,16 @@ const CostingHead = () => {
                       )}
                       <button
                         onClick={() => handleOpenSubheadModal(item._id)}
-                        className={`mr-4 ${
-                          isSubheadEnabled
+                        className={`mr-4 ${isSubheadEnabled
                             ? 'text-purple-500 hover:text-purple-700'
                             : 'text-gray-400 cursor-not-allowed'
-                        }`}
+                          }`}
                         disabled={!isSubheadEnabled}
                       >
                         Subhead
                       </button>
                       <button
-                        onClick={() => handleDelete(item._id)}
+                        onClick={() => handleDeleteClick(item._id)}
                         className="text-red-500 hover:text-red-700"
                       >
                         Delete
@@ -359,50 +547,6 @@ const CostingHead = () => {
           Add New Overhead
         </button>
       </div>
-
-      {subheadModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Add Subhead</h2>
-            <input
-              type="text"
-              value={subheadInput}
-              onChange={(e) => setSubheadInput(e.target.value)}
-              className="border p-2 rounded w-full mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Enter subhead"
-              required
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={handleAddSubhead}
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors duration-200"
-              >
-                Add
-              </button>
-              <button
-                onClick={handleCloseSubheadModal}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors duration-200"
-              >
-                Close
-              </button>
-            </div>
-            {currentRowId && costingData.find((item) => item._id === currentRowId)?.subheads?.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-medium">Existing Subheads:</h3>
-                <ul className="list-disc pl-5">
-                  {costingData
-                    .find((item) => item._id === currentRowId)
-                    ?.subheads?.map((subhead, idx) => (
-                      <li key={idx} className="text-gray-700">
-                        {subhead.name || subhead}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -61,17 +61,20 @@ const sampleProjects = [
   {
     projectId: 'PROJ-001',
     name: "E-Commerce Platform",
-    description: "Development of a full-stack e-commerce website with React and Node.js"
+    description: "Development of a full-stack e-commerce website with React and Node.js",
+    budget:45000
   },
   {
     projectId: 'PROJ-002',
     name: "Mobile Banking App",
-    description: "iOS and Android application for online banking services"
+    description: "iOS and Android application for online banking services",
+    budget:45000
   },
   {
     projectId: 'PROJ-003',
     name: "Inventory Management System",
-    description: "Enterprise solution for tracking inventory across multiple warehouses"
+    description: "Enterprise solution for tracking inventory across multiple warehouses",
+    budget:45000
   }
 ];
 
@@ -85,7 +88,8 @@ const sampleCostOverheads = [
     subheads: [
       { name: "Frontend Development" },
       { name: "Backend Development" },
-      { name: "Payment Gateway Integration" }
+      { name: "Payment Gateway Integration" },
+      { name: "fghfvgfbyugj" }
     ]
   },
   {
@@ -108,6 +112,18 @@ const sampleCostOverheads = [
       { name: "Prototyping" }
     ]
   },
+  
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Dgbjgf",
+    description: "UI/UX design costs",
+    subheads: [
+      { name: "Wireframingjhj jh" },
+      { name: "yjgbygun" },
+      { name: "Projvybg" }
+    ]
+  },
+
 
   // Overheads for PROJ-002 (Mobile Banking App)
   {

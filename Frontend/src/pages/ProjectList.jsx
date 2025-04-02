@@ -13,6 +13,9 @@ const ProjectList = () => {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editedProject, setEditedProject] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   // Validate token and get role
   const getValidatedRole = () => {
@@ -66,15 +69,11 @@ const ProjectList = () => {
         throw new Error(errorData.message || 'Failed to fetch projects');
       }
       
-      
       const data = await response.json();
-      console.log(data.data.data);
       // Check if data exists and is an array
       if (!data.success || !Array.isArray(data.data)) {
         throw new Error('Invalid projects data format');
       }
-
-
 
       const sortedProjects = data.data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       setProjects(sortedProjects);
@@ -91,15 +90,24 @@ const ProjectList = () => {
   }, [successMessage]);
 
   const handleEdit = (project) => {
-    setEditingProjectId(project._id);
-    setEditedProject({ ...project });
+    if (window.confirm('Are you sure you want to edit this project?')) {
+      setEditingProjectId(project._id);
+      setEditedProject({ ...project });
+    }
   };
 
   const handleChange = (e, field) => {
     setEditedProject({ ...editedProject, [field]: e.target.value });
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = () => {
+    setShowSaveConfirm(true);
+  };
+
+  const handleSaveConfirm = async (confirmed) => {
+    setShowSaveConfirm(false);
+    if (!confirmed) return;
+
     try {
       setIsProcessing(true);
       const token = localStorage.getItem("token");
@@ -131,15 +139,21 @@ const ProjectList = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this project?')) return;
+  const handleDeleteClick = (id) => {
+    setProjectToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async (confirmed) => {
+    setShowDeleteConfirm(false);
+    if (!confirmed) return;
 
     try {
       setIsProcessing(true);
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:5000/api/projects/${id}`,
+        `http://localhost:5000/api/projects/${projectToDelete}`,
         {
           method: 'DELETE',
           headers: {
@@ -153,7 +167,7 @@ const ProjectList = () => {
         throw new Error(errorData.message || 'Failed to delete project');
       }
 
-      setProjects(projects.filter(project => project._id !== id));
+      setProjects(projects.filter(project => project._id !== projectToDelete));
     } catch (err) {
       console.error("Delete error:", err);
       setError(err.message);
@@ -189,7 +203,54 @@ const ProjectList = () => {
   );
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-gray-100 min-h-screen pt-20">
+      {/* Confirmation Modals */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="mb-6">Are you sure you want to delete this project? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => handleDeleteConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirm(true)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSaveConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Changes</h3>
+            <p className="mb-6">Are you sure you want to save these changes?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => handleSaveConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveConfirm(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Project List</h2>
         <button
@@ -234,7 +295,7 @@ const ProjectList = () => {
                   ) : (
                     <button
                       onClick={() => navigate(`/projectdetails`, {
-                        state: { project }
+                        state:{project:project}
                       })}
                       className="text-blue-500 hover:underline font-medium"
                     >
@@ -275,7 +336,7 @@ const ProjectList = () => {
 
                   {editingProjectId === project._id ? (
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveClick}
                       className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
                       disabled={isProcessing}
                     >
@@ -292,7 +353,7 @@ const ProjectList = () => {
                   )}
 
                   <button
-                    onClick={() => handleDelete(project._id)}
+                    onClick={() => handleDeleteClick(project._id)}
                     className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
                     disabled={isProcessing}
                   >

@@ -123,3 +123,47 @@ exports.addSubhead = async (req, res) => {
     res.status(500).json({ message: 'Error adding subhead', error: error.message });
   }
 };
+
+// Delete subhead from overhead
+exports.deleteSubhead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    // First, verify the overhead exists
+    const overhead = await CostOverhead.findById(id);
+    if (!overhead) {
+      return res.status(404).json({ message: 'Overhead not found' });
+    }
+
+    // Check if the subhead exists
+    const subheadExists = overhead.subheads.some(subhead => subhead.name === name);
+    if (!subheadExists) {
+      return res.status(404).json({ message: 'Subhead not found' });
+    }
+
+    // Remove the subhead
+    const updatedOverhead = await CostOverhead.findByIdAndUpdate(
+      id,
+      { 
+        $pull: { subheads: { name } },
+        updatedAt: Date.now() 
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Subhead deleted successfully',
+      data: updatedOverhead
+    });
+  } catch (error) {
+    console.error('Error deleting subhead:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting subhead',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
