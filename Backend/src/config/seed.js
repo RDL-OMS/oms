@@ -4,33 +4,59 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const Project = require("../models/Project");
 const CostOverhead = require("../models/Costoverhead");
-const CostEntry = require("../models/Costentry"); // Make sure you have this model
 
 console.log("MongoDB URI:", process.env.MONGO_URI);
 
-// Sample users for seeding
+// Sample users for seeding - updated to match your User model
+const generateEmployeeId = (index) => {
+  return `RDL-EMP-${(10000 + index).toString().padStart(5, '0')}`;
+};
+
 const sampleUsers = [
   {
-    username: "admin",
-    email: "admin@example.com",
+    username: "owner1",
+    name: "manoj",
+    email: "owner1@example.com",
     password: "password123",
-    role: "admin",
+    role: "owner",
+    employeeId: generateEmployeeId(1)
   },
   {
-    username: "user1",
-    email: "user1@example.com",
+    username: "teamlead1",
+    name: "sanjana",
+    email: "teamlead1@example.com",
     password: "password123",
-    role: "user",
+    role: "teamlead",
+    employeeId: generateEmployeeId(2)
   },
   {
-    username: "admin1",
-    email: "admin1@example.com",
+    username: "member1",
+    name: "abhijina",
+    email: "member1@example.com",
     password: "password123",
-    role: "admin",
+    role: "member",
+    employeeId: generateEmployeeId(3)
+  },
+  {
+    username: "member2",
+    name: "megha",
+    email: "member2@example.com",
+    password: "password123",
+    role: "member",
+    employeeId: generateEmployeeId(4)
+  },
+  {
+    username: "teamlead2",
+    name: "shreya",
+    email: "teamlead2@example.com",
+    password: "password123",
+    role: "teamlead",
+    employeeId: generateEmployeeId(5)
   },
 ];
 
-// Sample projects for seeding
+
+// Sample projects for seeding - will be updated after users are created
 const sampleProjects = [
   {
     projectId: 'PROJ-001',
@@ -46,133 +72,105 @@ const sampleProjects = [
     projectId: 'PROJ-003',
     name: "Inventory Management System",
     description: "Enterprise solution for tracking inventory across multiple warehouses"
-  },
-  {
-    projectId: 'PROJ-004',
-    name: "Healthcare Portal",
-    description: "Patient management system for clinics and hospitals"
-  },
-  {
-    projectId: 'PROJ-005',
-    name: "Smart Home Automation",
-    description: "IoT platform for controlling home devices remotely"
   }
 ];
 
-// Sample cost overheads for PROJ-001 (E-Commerce)
-const sampleOverheadsPROJ001 = [
+// Sample cost overheads data
+const sampleCostOverheads = [
+  // Overheads for PROJ-001 (E-Commerce Platform)
   {
     projectId: "PROJ-001",
     overheadComponent: "Development",
     description: "Website development costs",
     subheads: [
-      { name: "Frontend Development", createdAt: new Date() },
-      { name: "Backend Development", createdAt: new Date() },
-      { name: "Payment Gateway Integration", createdAt: new Date() }
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date()
+      { name: "Frontend Development" },
+      { name: "Backend Development" },
+      { name: "Payment Gateway Integration" }
+    ]
   },
   {
     projectId: "PROJ-001",
     overheadComponent: "Hosting",
     description: "Server and cloud services",
     subheads: [
-      { name: "AWS Services", createdAt: new Date() },
-      { name: "Database Hosting", createdAt: new Date() }
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
+      { name: "AWS Services" },
+      { name: "Database Hosting" },
+      { name: "CDN Services" }
+    ]
+  },
+  {
+    projectId: "PROJ-001",
+    overheadComponent: "Design",
+    description: "UI/UX design costs",
+    subheads: [
+      { name: "Wireframing" },
+      { name: "Visual Design" },
+      { name: "Prototyping" }
+    ]
+  },
 
-// Sample cost overheads for PROJ-002 (Mobile Banking)
-const sampleOverheadsPROJ002 = [
+  // Overheads for PROJ-002 (Mobile Banking App)
+  {
+    projectId: "PROJ-002",
+    overheadComponent: "Development",
+    description: "App development costs",
+    subheads: [
+      { name: "iOS Development" },
+      { name: "Android Development" },
+      { name: "Backend API Development" }
+    ]
+  },
   {
     projectId: "PROJ-002",
     overheadComponent: "Security",
-    description: "Banking security implementation",
+    description: "Security implementation costs",
     subheads: [
-      { name: "Encryption", createdAt: new Date() },
-      { name: "Two-Factor Authentication", createdAt: new Date() },
-      { name: "Penetration Testing", createdAt: new Date() }
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date()
+      { name: "Encryption" },
+      { name: "Two-Factor Authentication" },
+      { name: "Penetration Testing" }
+    ]
   },
   {
     projectId: "PROJ-002",
     overheadComponent: "Compliance",
-    description: "Financial regulations",
+    description: "Regulatory compliance costs",
     subheads: [
-      { name: "PCI DSS Compliance", createdAt: new Date() },
-      { name: "Audit Costs", createdAt: new Date() }
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
+      { name: "PCI DSS Compliance" },
+      { name: "Financial Audit" },
+      { name: "Legal Consultation" }
+    ]
+  },
 
-// Sample cost entries for PROJ-001
-const sampleCostEntriesPROJ001 = [
+  // Overheads for PROJ-003 (Inventory Management System)
   {
-    projectId: "PROJ-001",
+    projectId: "PROJ-003",
     overheadComponent: "Development",
-    subhead: "Frontend Development",
-    description: "React components implementation",
-    expectedCost: 15000,
-    actualCost: 14500,
-    variance: -3.33,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    description: "System development costs",
+    subheads: [
+      { name: "Core System Development" },
+      { name: "Reporting Module" },
+      { name: "Integration APIs" }
+    ]
   },
   {
-    projectId: "PROJ-001",
-    overheadComponent: "Development",
-    subhead: "Backend Development",
-    description: "API development with Node.js",
-    expectedCost: 20000,
-    actualCost: 21000,
-    variance: 5.00,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    projectId: "PROJ-003",
+    overheadComponent: "Hardware",
+    description: "Required hardware costs",
+    subheads: [
+      { name: "Barcode Scanners" },
+      { name: "Inventory Terminals" },
+      { name: "Network Equipment" }
+    ]
   },
   {
-    projectId: "PROJ-001",
-    overheadComponent: "Hosting",
-    subhead: "AWS Services",
-    description: "EC2 instances for production",
-    expectedCost: 5000,
-    actualCost: 5200,
-    variance: 4.00,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-
-// Sample cost entries for PROJ-002
-const sampleCostEntriesPROJ002 = [
-  {
-    projectId: "PROJ-002",
-    overheadComponent: "Security",
-    subhead: "Encryption",
-    description: "Data encryption implementation",
-    expectedCost: 8000,
-    actualCost: 7500,
-    variance: -6.25,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    projectId: "PROJ-002",
-    overheadComponent: "Compliance",
-    subhead: "PCI DSS Compliance",
-    description: "Compliance certification costs",
-    expectedCost: 12000,
-    actualCost: 12500,
-    variance: 4.17,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    projectId: "PROJ-003",
+    overheadComponent: "Training",
+    description: "Staff training costs",
+    subheads: [
+      { name: "Admin Training" },
+      { name: "User Training" },
+      { name: "Technical Support Training" }
+    ]
   }
 ];
 
@@ -191,41 +189,99 @@ const seedDatabase = async () => {
     await User.deleteMany();
     await Project.deleteMany();
     await CostOverhead.deleteMany();
-    await CostEntry.deleteMany();
     console.log("Existing data cleared");
 
-    // Seed sample users
+    // Seed sample users with hashed passwords
+    const createdUsers = [];
     for (const user of sampleUsers) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(user.password, salt);
-      await User.create({
+      const newUser = await User.create({
         username: user.username,
+        employeeId:user.employeeId,
+        name:user.name,
         email: user.email,
         password: hashedPassword,
         role: user.role,
       });
+      createdUsers.push(newUser);
     }
     console.log("Users seeded");
 
-    // Seed sample projects
-    const createdProjects = await Project.insertMany(sampleProjects);
+    // Find specific users by their role for project assignment
+    const owner = createdUsers.find(u => u.role === 'owner');
+    const teamlead1 = createdUsers.find(u => u.username === 'teamlead1');
+    const teamlead2 = createdUsers.find(u => u.username === 'teamlead2');
+    const member1 = createdUsers.find(u => u.username === 'member1');
+    const member2 = createdUsers.find(u => u.username === 'member2');
+
+    // Update projects with user references
+    const projectsToSeed = [
+      {
+        ...sampleProjects[0],
+        createdBy: owner._id,
+        teamLead: teamlead1._id,
+        members: [member1._id, member2._id]
+      },
+      {
+        ...sampleProjects[1],
+        createdBy: owner._id,
+        teamLead: teamlead2._id,
+        members: [member1._id]
+      },
+      {
+        ...sampleProjects[2],
+        createdBy: owner._id,
+        teamLead: teamlead1._id,
+        members: [member2._id]
+      }
+    ];
+
+    // Seed projects
+    const createdProjects = await Project.insertMany(projectsToSeed);
     console.log("Projects seeded");
 
-    // Seed overheads for PROJ-001
-    await CostOverhead.insertMany(sampleOverheadsPROJ001);
-    console.log("Overheads for PROJ-001 seeded");
+    // Update users with their project assignments
+    await User.updateMany(
+      { _id: owner._id },
+      { $addToSet: { projects: { $each: createdProjects.map(p => p._id) } } }
+    );
 
-    // Seed overheads for PROJ-002
-    await CostOverhead.insertMany(sampleOverheadsPROJ002);
-    console.log("Overheads for PROJ-002 seeded");
+    await User.updateMany(
+      { _id: teamlead1._id },
+      { 
+        $addToSet: { 
+          projects: [createdProjects[0]._id, createdProjects[2]._id],
+          managedProjects: [createdProjects[0]._id, createdProjects[2]._id]
+        } 
+      }
+    );
 
-    // Seed cost entries for PROJ-001
-    await CostEntry.insertMany(sampleCostEntriesPROJ001);
-    console.log("Cost entries for PROJ-001 seeded");
+    await User.updateMany(
+      { _id: teamlead2._id },
+      { 
+        $addToSet: { 
+          projects: createdProjects[1]._id,
+          managedProjects: createdProjects[1]._id
+        } 
+      }
+    );
 
-    // Seed cost entries for PROJ-002
-    await CostEntry.insertMany(sampleCostEntriesPROJ002);
-    console.log("Cost entries for PROJ-002 seeded");
+    await User.updateMany(
+      { _id: member1._id },
+      { $addToSet: { projects: [createdProjects[0]._id, createdProjects[1]._id] } }
+    );
+
+    await User.updateMany(
+      { _id: member2._id },
+      { $addToSet: { projects: [createdProjects[0]._id, createdProjects[2]._id] } }
+    );
+
+    console.log("User project assignments updated");
+
+    // Seed cost overheads
+    await CostOverhead.insertMany(sampleCostOverheads);
+    console.log("Cost overheads seeded");
 
     mongoose.connection.close();
     console.log("Seeding complete");

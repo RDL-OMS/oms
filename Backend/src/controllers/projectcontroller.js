@@ -1,92 +1,196 @@
 const Project = require('../models/Project');
-const CostEntry=require('../models/Costentry')
+const CostEntry = require('../models/Costentry');
+const User = require('../models/user')
 
-// Get all projects
+// Get all projects (with role-based filtering)
 exports.getProjects = async (req, res) => {
+
+
   try {
-    const projects = await Project.find().sort({ createdAt: -1 });
-    res.status(200).json(projects);
+    // Verify authentication
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized - Missing user information'
+      });
+    }
+
+    const requestedRole = req.params.role; // From URL parameter
+    const { role: userRole, id: userId } = req.user; // From JWT token
+
+    // Verify the requested role matches the user's actual role
+    if (requestedRole !== userRole) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden - Role mismatch'
+      });
+    }
+
+    // Query construction
+    let query = {};
+
+    // Role-based filtering
+    switch (userRole) {
+      case 'owner':
+        // Owners can see all projects
+        break;
+
+      case 'teamlead':
+        query.$or = [
+          { teamLead: userId },
+          { members: userId }
+        ];
+        break;
+
+      case 'member':
+        query.members = userId;
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role specified'
+        });
+    }
+
+    // Execute query
+    const projects = await Project.find(query)
+      .sort({ updatedAt: -1 })
+      .populate('teamLead', 'name email')
+      .populate('members', 'name email');
+
+    // Transform response
+    const responseData = {
+      success: true,
+      data: projects.map(project => ({
+        _id: project._id,
+        projectId: project.projectId,
+        name: project.name,
+        description: project.description,
+        updatedAt: project.updatedAt,
+        teamLead: project.teamLead,
+        members: project.members
+      }))
+    };
+
+    res.status(200).json(responseData);
+
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching projects', error: error.message });
+    console.error('Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      data: [] // Ensure data is always an array
+    });
   }
 };
 
-// Create a new project
-
+// Create a new project (only owner or teamlead)
 exports.createProject = async (req, res) => {
-    try {
-      const { projectId, name, description } = req.body;
-  
-      // Validation
-      if (!projectId || !name || !description) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Project ID, name, and description are required' 
-        });
-      }
-  
-      // Check for duplicate projectId
-      const exists = await Project.findOne({ projectId });
-      if (exists) {
-        return res.status(409).json({
-          success: false,
-          message: 'Project ID already exists'
-        });
-      }
-  
-      // Create project
-      const project = await Project.create({
-        projectId,
-        name,
-        description
-      });
-  
-      res.status(201).json({
-        success: true,
-        data: {
-          projectId: project.projectId,
-          name: project.name,
-          description: project.description,
-          createdAt: project.createdAt
-        }
-      });
-  
-    } catch (err) {
-      console.error('Error creating project:', err);
-      res.status(500).json({
+  try {
+    // Check if user has permission
+    if (!['owner', 'teamlead'].includes(req.user.role)) {
+      return res.status(403).json({
         success: false,
-        message: 'Server error',
-        error: err.message
+        message: 'Only owners and team leads can create projects'
       });
     }
-  };
 
-// Update a project
+    const { projectId, name, description } = req.body;
+
+    // Validation
+    if (!projectId || !name || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID, name, and description are required'
+      });
+    }
+
+    // Check for duplicate projectId
+    const exists = await Project.findOne({ projectId });
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: 'Project ID already exists'
+      });
+    }
+
+    // Create project with creator info
+    const project = await Project.create({
+      projectId,
+      name,
+      description,
+      createdBy: req.user.id,
+      teamLead: req.user.role === 'teamlead' ? req.user.id : null
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        projectId: project.projectId,
+        name: project.name,
+        description: project.description,
+        createdAt: project.createdAt
+      }
+    });
+
+  } catch (err) {
+    console.error('Error creating project:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+};
+
+// Update a project (owner or assigned teamlead)
 exports.updateProject = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
 
-    const updatedProject = await Project.findByIdAndUpdate(
-      id,
-      { name, description, 
-        updatedAt:Date.now() },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedProject) {
+    // First get the project to check permissions
+    const project = await Project.findById(id);
+    if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    // Check permissions
+    const canEdit = req.user.role === 'owner' ||
+      (req.user.role === 'teamlead' && project.teamLead.equals(req.user.id));
+
+    if (!canEdit) {
+      return res.status(403).json({
+        message: 'Not authorized to update this project'
+      });
+    }
+
+    const updatedProject = await Project.findByIdAndUpdate(
+      id,
+      { name, description, updatedAt: Date.now() },
+      { new: true, runValidators: true }
+    );
+
     res.status(200).json(updatedProject);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating project', error: error.message });
+    res.status(500).json({
+      message: 'Error updating project',
+      error: error.message
+    });
   }
 };
 
-// Delete a project
+// Delete a project (only owner)
 exports.deleteProject = async (req, res) => {
   try {
+    // Only owners can delete projects
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({
+        message: 'Only owners can delete projects'
+      });
+    }
+
     const { id } = req.params;
     const deletedProject = await Project.findByIdAndDelete(id);
 
@@ -96,11 +200,14 @@ exports.deleteProject = async (req, res) => {
 
     res.status(200).json({ message: 'Project deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting project', error: error.message });
+    res.status(500).json({
+      message: 'Error deleting project',
+      error: error.message
+    });
   }
 };
 
-// Get single project
+// Get single project (with permission check)
 exports.getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -110,18 +217,47 @@ exports.getProjectById = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    // Check if user has access
+    const hasAccess = req.user.role === 'owner' ||
+      project.teamLead.equals(req.user.id) ||
+      project.members.includes(req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: 'Not authorized to view this project'
+      });
+    }
+
     res.status(200).json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching project', error: error.message });
+    res.status(500).json({
+      message: 'Error fetching project',
+      error: error.message
+    });
   }
 };
 
-
-// Properly export the function
-exports.getCostentriesID= async (req, res) => {
+// Get cost entries with permission check
+exports.getCostentriesID = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    // First check project access
+    const project = await Project.findById(id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const hasAccess = req.user.role === 'owner' ||
+      project.teamLead.equals(req.user.id) ||
+      project.members.includes(req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: 'Not authorized to view this project\'s cost entries'
+      });
+    }
+
     const costEntries = await CostEntry.find({ projectId: id })
       .select('overheadComponent subhead description expectedCost actualCost variance')
       .lean();
@@ -143,9 +279,37 @@ exports.getCostentriesID= async (req, res) => {
     res.status(200).json(formattedEntries);
   } catch (error) {
     console.error("Error fetching cost entries:", error.message);
-    res.status(500).json({ 
-      message: 'Error fetching cost entries', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error fetching cost entries',
+      error: error.message
     });
+  }
+};
+
+
+exports.getProjectsUM = async (req, res) => {
+  try {
+
+    const userId = req.params.id;
+    const role = req.params.role;
+
+
+
+    if (!userId || !role) {
+      return res.status(400).json({ message: "User ID and role are required" });
+    }
+
+    let user = await User.findOne({ username: userId }).populate(role === 'teamlead' ? 'managedProjects' : 'projects');
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const projects = role === 'teamlead' ? user.managedProjects : user.projects;
+
+    res.json({ success: true, data: projects });
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

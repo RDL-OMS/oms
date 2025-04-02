@@ -254,7 +254,8 @@ const ProjectDetails = () => {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Project: {project.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Project: {project.name}[{project.projectId}]</h1>
+       
         <button onClick={() => navigate('/ProjectList')} className="text-gray-600 hover:text-gray-800">
           ← Back to Projects
         </button>
