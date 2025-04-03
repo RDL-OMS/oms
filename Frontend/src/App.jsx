@@ -150,6 +150,7 @@ import ProjectList from "./pages/ProjectList"
 import UserManagement from "./pages/owner/Usermanagement";
 import CostingHead from "./pages/Costinghead";
 import ProjectDetails from "./pages/ProjectDetails";
+import ManageProjectMembers from "./pages/teamlead/MemberManagement";
 
 function App() {
   return (
@@ -204,6 +205,12 @@ function App() {
           <Route path="/teamlead/dashboard" element={
             <ProtectedRoute allowedRoles={['teamlead']}>
               <TeamLeadDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/teamlead/members" element={
+            <ProtectedRoute allowedRoles={['teamlead']}>
+              <ManageProjectMembers />
             </ProtectedRoute>
           } />
 

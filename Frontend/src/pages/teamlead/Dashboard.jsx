@@ -1,48 +1,53 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import "chart.js/auto";
-import '../pages.css';
 
 const TeamLeadDashboard = () => {
-  
-  const [year, setYear] = useState("2025");
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const decoded = jwtDecode(token);
-    const role=decoded.role;
-    console.log("token",role);
-    if (!token || role !== 'teamlead') {
+    if (token) {
+      const decoded = jwtDecode(token);
+      const role = decoded.role;
+      if (role !== "teamlead") {
+        navigate("/", { replace: true });
+      }
+    } else {
       navigate("/", { replace: true });
     }
   }, [navigate]);
 
-  // Chart options configuration
+  // Chart options with Rupees format
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top',
+        position: "top",
       },
       tooltip: {
-        mode: 'index',
+        mode: "index",
         intersect: false,
+        callbacks: {
+          label: function (tooltipItem) {
+            return `₹${tooltipItem.raw.toLocaleString()}`;
+          },
+        },
       },
     },
     scales: {
       y: {
         beginAtZero: true,
         ticks: {
-          callback: function(value) {
-            return '₹' + value.toLocaleString();
-          }
-        }
-      }
-    }
+          callback: function (value) {
+            return `₹${value.toLocaleString()}`;
+          },
+        },
+      },
+    },
   };
 
   // Team performance data
@@ -69,40 +74,30 @@ const TeamLeadDashboard = () => {
       {
         label: "Planned Progress",
         data: [10, 30, 50, 70, 80, 90],
-        borderColor: '#3498db',
-        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+        borderColor: "#3498db",
+        backgroundColor: "rgba(52, 152, 219, 0.1)",
         tension: 0.3,
-        fill: true
+        fill: true,
       },
       {
         label: "Actual Progress",
         data: [8, 25, 45, 60, 75, 85],
-        borderColor: '#9b59b6',
-        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+        borderColor: "#9b59b6",
+        backgroundColor: "rgba(155, 89, 182, 0.1)",
         tension: 0.3,
-        fill: true
-      }
-    ]
+        fill: true,
+      },
+    ],
   };
 
   return (
     <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen">
-      {/* Year Selection */}
-      <div className="flex justify-center mb-8">
-        <div className="p-4 bg-white shadow-lg rounded-lg flex items-center">
-          <label htmlFor="year" className="font-semibold mr-3 text-gray-700 text-lg">
-            Select Year:
-          </label>
-          <select
-            id="year"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-blue-300"
-          >
-            <option value="2025">2025</option>
-            <option value="2024">2024</option>
-          </select>
-        </div>
+      {/* Manage Members Button */}
+      <div className="flex justify-end mb-4">
+        <button onClick={()=> navigate('/teamlead/members')} 
+        className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+          Manage Members
+        </button>
       </div>
 
       {/* Team-Focused Stats */}
