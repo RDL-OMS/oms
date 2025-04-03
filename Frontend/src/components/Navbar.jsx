@@ -1,5 +1,5 @@
 import React from "react";
-import { Menu, Home, Folder, Plus, LogOut } from "lucide-react";
+import { Menu, Home, Folder, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import "./navbar.css";
 
@@ -7,9 +7,9 @@ const Navbar = ({ onSidebarToggle }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove token
-    navigate("/", { replace: true }); // Redirect to login & prevent back navigation
-    window.location.reload(); // Ensure all states are reset
+    localStorage.removeItem("token");
+    navigate("/", { replace: true });
+    window.location.reload();
   };
 
   return (
@@ -30,11 +30,11 @@ const Navbar = ({ onSidebarToggle }) => {
         Overhead Management System
       </span>
 
-      {/* Action Buttons */}
+      {/* Navigation Buttons */}
       <div className="flex gap-4">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded text-white"
+          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded"
         >
           <Home size={18} />
           <span>Home</span>
@@ -42,23 +42,15 @@ const Navbar = ({ onSidebarToggle }) => {
 
         <button
           onClick={() => navigate("/ProjectList")}
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded text-white"
+          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-800 px-4 py-2 rounded"
         >
           <Folder size={18} />
           <span>Projects</span>
         </button>
 
         <button
-          onClick={() => navigate("/add-project")}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white"
-        >
-          <Plus size={18} />
-          <span>Add Project</span>
-        </button>
-
-        <button
           onClick={handleLogout}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
         >
           <LogOut size={18} />
           <span>Logout</span>
