@@ -12,6 +12,8 @@ const UserManagement = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [roleChangeData, setRoleChangeData] = useState({ userId: '', newRole: '' });
     const [userProjects, setUserProjects] = useState([]);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedUser, setEditedUser] = useState(null);
     const navigate = useNavigate();
 
     const roles = ['owner', 'teamlead', 'member'];
@@ -67,8 +69,6 @@ const UserManagement = () => {
                     'Authorization': `Bearer ${localStorage.getItem("token")}`
                 }
             });
-            console.log("response",response);
-            
 
             if (!response.ok) throw new Error('Failed to fetch projects');
             
@@ -88,23 +88,10 @@ const UserManagement = () => {
     const confirmRoleChange = async () => {
         try {
             const { userId, newRole } = roleChangeData;
-            const response = await fetch(`http://localhost:5000/api/users/${userId}/role`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem("token")}`
-                },
-                body: JSON.stringify({ role: newRole })
-            });
-
-            if (!response.ok) throw new Error('Failed to update role');
-
-            // Update local state
             setUsers(users.map(user => 
                 user._id === userId ? { ...user, role: newRole } : user
             ));
             
-            // If we're viewing this user's profile, update that too
             if (selectedUser && selectedUser._id === userId) {
                 setSelectedUser({ ...selectedUser, role: newRole });
             }
@@ -118,17 +105,54 @@ const UserManagement = () => {
 
     const openUserModal = async (user) => {
         setLoading(true);
-        
         try {
             const projects = await fetchUserProjects(user.username, user.role);
             setUserProjects(projects);
             setSelectedUser(user);
+            setEditedUser({ ...user });
             setShowModal(true);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEditToggle = () => {
+        setIsEditing(!isEditing);
+        if (!isEditing) {
+            setEditedUser({ ...selectedUser });
+        } else {
+            setEditedUser(null);
+        }
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditedUser(prev => ({ ...prev, [name]: value }));
+    };
+
+    const saveChanges = () => {
+        if (!editedUser) return;
+
+        // Update users array
+        setUsers(prevUsers => prevUsers.map(user => 
+            user._id === editedUser._id ? { ...user, ...editedUser } : user
+        ));
+
+        // Update selected user
+        setSelectedUser(prev => ({ ...prev, ...editedUser }));
+
+        // Exit editing mode
+        setIsEditing(false);
+        setEditedUser(null);
+    };
+
+    // Group users by role
+    const groupedUsers = {
+        owner: users.filter(user => user.role === 'owner'),
+        teamlead: users.filter(user => user.role === 'teamlead'),
+        member: users.filter(user => user.role === 'member')
     };
 
     if (loading) return (
@@ -141,7 +165,10 @@ const UserManagement = () => {
         <div className="p-6 text-red-500">
             Error: {error}
             <button 
-                onClick={fetchUsers}
+                onClick={() => {
+                    setError(null);
+                    fetchUsers();
+                }}
                 className="ml-4 bg-blue-500 text-white px-4 py-2 rounded"
             >
                 Retry
@@ -166,61 +193,74 @@ const UserManagement = () => {
                     <p className="text-gray-600 text-lg">No users found</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {users.map(user => (
-                        <div key={user._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                            <div className="p-4">
-                                <div className="flex items-center space-x-4 mb-4">
-                                    <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
-                                        {user.avatar ? (
-                                            <img 
-                                                src={user.avatar} 
-                                                alt={user.name} 
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <span className="text-2xl text-gray-600">
-                                                {user.name.charAt(0).toUpperCase()}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-lg">{user.name.charAt(0).toUpperCase()+user.name.slice(1)}</h3>
-                                        <p className="text-gray-600">ID: {user.employeeId}</p>
-                                        <p className={`text-sm font-medium ${
-                                            user.role === 'owner' ? 'text-purple-600' : 
-                                            user.role === 'teamlead' ? 'text-blue-600' : 'text-green-600'
-                                        }`}>
-                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                                        </p>
-                                    </div>
-                                </div>
+                <div className="space-y-12">
+                    {roles.map(role => (
+                        groupedUsers[role].length > 0 && (
+                            <div key={role}>
+                                <h2 className="text-xl font-semibold mb-4 capitalize text-gray-700">
+                                    {role}s
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {groupedUsers[role].map(user => (
+                                        <div key={user._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                                            <div className="p-4">
+                                                <div className="flex items-center space-x-4 mb-4">
+                                                    <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                                                        {user.avatar ? (
+                                                            <img 
+                                                                src={user.avatar} 
+                                                                alt={user.name} 
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-2xl text-gray-600">
+                                                                {user.name.charAt(0).toUpperCase()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-lg">
+                                                            {user.name.charAt(0).toUpperCase() + user.name.slice(1)}
+                                                        </h3>
+                                                        <p className="text-gray-600">ID: {user.employeeId}</p>
+                                                        <p className={`text-sm font-medium ${
+                                                            user.role === 'owner' ? 'text-purple-600' : 
+                                                            user.role === 'teamlead' ? 'text-blue-600' : 'text-green-600'
+                                                        }`}>
+                                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                                        </p>
+                                                    </div>
+                                                </div>
 
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Change Role
-                                    </label>
-                                    <select
-                                        value={user.role}
-                                        onChange={(e) => handleRoleChangeInit(user._id, e.target.value)}
-                                        className="w-full p-2 border border-gray-300 rounded"
-                                    >
-                                        {roles.map(role => (
-                                            <option key={role} value={role}>
-                                                {role.charAt(0).toUpperCase() + role.slice(1)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                                <div className="mb-4">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Change Role
+                                                    </label>
+                                                    <select
+                                                        value={user.role}
+                                                        onChange={(e) => handleRoleChangeInit(user._id, e.target.value)}
+                                                        className="w-full p-2 border border-gray-300 rounded"
+                                                    >
+                                                        {roles.map(roleOption => (
+                                                            <option key={roleOption} value={roleOption}>
+                                                                {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
 
-                                <button
-                                    onClick={() => openUserModal(user)}
-                                    className="w-full bg-blue-100 text-blue-600 py-2 rounded hover:bg-blue-200 transition"
-                                >
-                                    View Full Profile
-                                </button>
+                                                <button
+                                                    onClick={() => openUserModal(user)}
+                                                    className="w-full bg-blue-100 text-blue-600 py-2 rounded hover:bg-blue-200 transition"
+                                                >
+                                                    View Full Profile
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )
                     ))}
                 </div>
             )}
@@ -231,13 +271,35 @@ const UserManagement = () => {
                     <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
-                                <h2 className="text-xl font-bold">{selectedUser.name.charAt(0).toUpperCase()+selectedUser.name.slice(1)}'s Profile</h2>
-                                <button 
-                                    onClick={() => setShowModal(false)}
-                                    className="text-gray-500 hover:text-gray-700 text-2xl"
-                                >
-                                    &times;
-                                </button>
+                                <h2 className="text-xl font-bold">{selectedUser.name.charAt(0).toUpperCase() + selectedUser.name.slice(1)}'s Profile</h2>
+                                <div className="flex items-center space-x-2">
+                                    <button 
+                                        onClick={handleEditToggle}
+                                        className="text-gray-500 hover:text-gray-700"
+                                    >
+                                        {isEditing ? (
+                                            <span className="text-sm">Cancel</span>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    {isEditing && (
+                                        <button 
+                                            onClick={saveChanges}
+                                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                        >
+                                            Save
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => setShowModal(false)}
+                                        className="text-gray-500 hover:text-gray-700 text-2xl"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex flex-col items-center mb-6">
@@ -254,8 +316,28 @@ const UserManagement = () => {
                                         </span>
                                     )}
                                 </div>
-                                <h3 className="text-lg font-semibold">{selectedUser.name.charAt(0).toUpperCase()+selectedUser.name.slice(1)}</h3>
-                                <p className="text-gray-600">{selectedUser.email}</p>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={editedUser.name}
+                                        onChange={handleInputChange}
+                                        className="text-lg font-semibold text-center border rounded p-1 w-full mb-2"
+                                    />
+                                ) : (
+                                    <h3 className="text-lg font-semibold">{selectedUser.name.charAt(0).toUpperCase() + selectedUser.name.slice(1)}</h3>
+                                )}
+                                {isEditing ? (
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={editedUser.email}
+                                        onChange={handleInputChange}
+                                        className="text-gray-600 text-center border rounded p-1 w-full"
+                                    />
+                                ) : (
+                                    <p className="text-gray-600">{selectedUser.email}</p>
+                                )}
                                 <p className={`mt-1 px-3 py-1 rounded-full text-sm font-medium ${
                                     selectedUser.role === 'owner' ? 'bg-purple-100 text-purple-800' : 
                                     selectedUser.role === 'teamlead' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
@@ -267,22 +349,37 @@ const UserManagement = () => {
                             <div className="space-y-4">
                                 <div>
                                     <h4 className="font-medium text-gray-700">User ID</h4>
-                                    <p className="text-gray-900">{selectedUser.employeeId}</p>
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            name="employeeId"
+                                            value={editedUser.employeeId}
+                                            onChange={handleInputChange}
+                                            className="w-full p-1 border rounded"
+                                        />
+                                    ) : (
+                                        <p className="text-gray-900">{selectedUser.employeeId}</p>
+                                    )}
                                 </div>
 
                                 <div>
                                     <h4 className="font-medium text-gray-700">Current Role</h4>
-                                    <select
-                                        value={selectedUser.role}
-                                        onChange={(e) => handleRoleChangeInit(selectedUser._id, e.target.value)}
-                                        className="w-full p-2 border border-gray-300 rounded mt-1"
-                                    >
-                                        {roles.map(role => (
-                                            <option key={role} value={role}>
-                                                {role.charAt(0).toUpperCase() + role.slice(1)}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {isEditing ? (
+                                        <select
+                                            name="role"
+                                            value={editedUser.role}
+                                            onChange={handleInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded mt-1"
+                                        >
+                                            {roles.map(role => (
+                                                <option key={role} value={role}>
+                                                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <p className="text-gray-900">{selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}</p>
+                                    )}
                                 </div>
 
                                 <div>
