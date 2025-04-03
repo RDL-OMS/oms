@@ -64,7 +64,9 @@ const ProjectDetails = () => {
           _id: item._id || Math.random().toString(36).substring(2, 9),
           overheadComponent: item.overheadComponent || 'Uncategorized',
           description: item.description || '',
-          subheads: Array.isArray(item.subheads) ? item.subheads : []
+          subheads: Array.isArray(item.subheads) 
+            ? item.subheads.map(sub => typeof sub === 'string' ? sub : sub.name)
+            : []
         }));
         setCostingData(validatedOverheads);
 
@@ -291,12 +293,12 @@ const ProjectDetails = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'INR'
     }).format(amount);
   };
-
+  
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);

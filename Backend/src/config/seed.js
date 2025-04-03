@@ -62,7 +62,7 @@ const sampleProjects = [
     projectId: 'PROJ-001',
     name: "E-Commerce Platform",
     description: "Development of a full-stack e-commerce website with React and Node.js",
-    budget:45000
+    budget:10000
   },
   {
     projectId: 'PROJ-002',

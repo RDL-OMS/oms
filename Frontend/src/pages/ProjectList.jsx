@@ -90,10 +90,9 @@ const ProjectList = () => {
   }, [successMessage]);
 
   const handleEdit = (project) => {
-    if (window.confirm('Are you sure you want to edit this project?')) {
       setEditingProjectId(project._id);
       setEditedProject({ ...project });
-    }
+    
   };
 
   const handleChange = (e, field) => {

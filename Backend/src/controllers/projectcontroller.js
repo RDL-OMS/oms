@@ -69,7 +69,7 @@ exports.getProjects = async (req, res) => {
         description: project.description,
         updatedAt: project.updatedAt,
         teamLead: project.teamLead,
-        budget:project.budget,
+        budget: project.budget,
         members: project.members
       }))
     };
@@ -97,7 +97,7 @@ exports.createProject = async (req, res) => {
       });
     }
 
-    const { projectId, name, description } = req.body;
+    const { projectId, name, description, budget } = req.body;
 
     // Validation
     if (!projectId || !name || !description) {
@@ -121,6 +121,7 @@ exports.createProject = async (req, res) => {
       projectId,
       name,
       description,
+      budget,
       createdBy: req.user.id,
       teamLead: req.user.role === 'teamlead' ? req.user.id : null
     });
@@ -131,6 +132,7 @@ exports.createProject = async (req, res) => {
         projectId: project.projectId,
         name: project.name,
         description: project.description,
+        budget: project.budget,
         createdAt: project.createdAt
       }
     });
@@ -242,11 +244,9 @@ exports.getProjectById = async (req, res) => {
 exports.getCostentriesID = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("IDDDD",id);
-    
 
     // First check project access
-    const project = await Project.findOne({projectId:id});
+    const project = await Project.findOne({ projectId: id });
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -314,5 +314,98 @@ exports.getProjectsUM = async (req, res) => {
   } catch (error) {
     console.error("Error fetching projects:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+//save cost entry
+exports.saveCostEntries = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const projectId = id;
+    const { entries } = req.body;
+
+
+    // Validate project exists
+    const project = await Project.findOne({ projectId });
+    console.log("project", project._id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Validate request body
+    if (!Array.isArray(entries)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Entries must be an array'
+      });
+    }
+
+    // Validate each entry
+    const validatedEntries = [];
+    for (const entry of entries) {
+      if (!entry.overheadComponent || !entry.subhead) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each entry must have overheadComponent and subhead'
+        });
+      }
+
+      if (isNaN(entry.expectedCost)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Expected cost must be a number'
+        });
+      }
+
+      if (isNaN(entry.actualCost)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Actual cost must be a number'
+        });
+      }
+
+      validatedEntries.push({
+        project:project._id,
+        projectId:projectId,
+        overheadComponent: entry.overheadComponent,
+        subhead: entry.subhead,
+        description: entry.description || '',
+        expectedCost: parseFloat(entry.expectedCost),
+        actualCost: parseFloat(entry.actualCost),
+        variance: parseFloat(entry.variance) || 0
+      });
+    }
+    console.log("new overhead", validatedEntries);
+
+    // Save all entries
+    const savedEntries = await CostEntry.insertMany(validatedEntries);
+    console.log("saved", savedEntries);
+
+    // Update project's cost entries reference
+    await Project.findOneAndUpdate(
+      project._id,  // Query by string _id
+      { $push: { costEntries: { $each: savedEntries  } } },
+      { new: true }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Cost entries saved successfully',
+      data: savedEntries
+    });
+
+  } catch (error) {
+    console.error('Error saving cost entries:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while saving cost entries',
+      error: error.message
+    });
   }
 };

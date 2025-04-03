@@ -2,9 +2,13 @@
 const mongoose = require('mongoose');
 
 const costEntrySchema = new mongoose.Schema({
+  project: {
+    type: mongoose.Schema.Types.ObjectId,  // Reference the _id
+    ref: 'Project',
+    required: true
+  },
   projectId: {
     type: String,
-    ref: 'Project',
     required: true
   },
   overheadComponent: {
@@ -44,7 +48,7 @@ const costEntrySchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-costEntrySchema.pre('save', function(next) {
+costEntrySchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });

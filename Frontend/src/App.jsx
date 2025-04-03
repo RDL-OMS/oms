@@ -151,6 +151,7 @@ import UserManagement from "./pages/owner/Usermanagement";
 import CostingHead from "./pages/Costinghead";
 import ProjectDetails from "./pages/ProjectDetails";
 import ManageProjectMembers from "./pages/teamlead/MemberManagement";
+import AddProject from "./pages/AddProject";
 
 function App() {
   return (
@@ -189,6 +190,14 @@ function App() {
             <ProtectedRoute allowedRoles={['owner']}>
               <Navbar />
               <ProjectDetails />
+            </ProtectedRoute>
+          } />
+
+
+          <Route path="/add-project" element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <Navbar />
+              <AddProject />
             </ProtectedRoute>
           } />
 

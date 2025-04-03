@@ -55,4 +55,9 @@ router.get('/cost-entries/:id', projectController.getCostentriesID); // Better R
 
 router.get('/getProjects/:id/:role',projectController.getProjectsUM)
 
+
+router.post('/createproject', projectController.createProject);
+
+router.post('/:id/cost-entries',projectController.saveCostEntries)
+
 module.exports = router;
