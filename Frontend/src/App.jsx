@@ -213,6 +213,7 @@ function App() {
 
           <Route path="/teamlead/dashboard" element={
             <ProtectedRoute allowedRoles={['teamlead']}>
+            <Navbar />
               <TeamLeadDashboard />
             </ProtectedRoute>
           } />

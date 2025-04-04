@@ -6,7 +6,6 @@ import "chart.js/auto";
 import '../pages.css';
 
 const OwnerDashboard = () => {
-    const [year, setYear] = useState("2025");
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -18,41 +17,47 @@ const OwnerDashboard = () => {
         }
     }, [navigate]);
 
-    // ... keep your existing chart data and options ...
     const pieData = {
-        labels: ["Infrastructure", "Operations", "IT", "HR", "Marketing"],
+        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
         datasets: [
             {
-                data: [30, 20, 15, 25, 10],
+                data: [30, 20, 25, 15, 10],
                 backgroundColor: ["#3498db", "#2ecc71", "#f1c40f", "#e74c3c", "#9b59b6"],
             },
         ],
     };
 
     const barData = {
-        labels: ["January", "February", "March", "April", "May", "June", "July"],
+        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
         datasets: [
             {
                 label: "Allocated Cost",
                 backgroundColor: "#2ecc71",
-                data: [500000, 400000, 700000, 600000, 900000, 550000, 800000],
+                data: [500000, 400000, 700000, 600000, 900000],
             },
             {
                 label: "Actual Cost",
                 backgroundColor: "#e74c3c",
-                data: [450000, 350000, 650000, 550000, 850000, 500000, 750000],
+                data: [450000, 350000, 650000, 550000, 850000],
             },
         ],
     };
 
-    const areaData = {
-        labels: ["January", "February", "March", "April", "May", "June", "July"],
+    const lineData = {
+        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
         datasets: [
             {
-                label: "Revenue",
-                data: [1000000, 1200000, 900000, 1100000, 1300000, 1250000, 1400000],
-                backgroundColor: "rgba(52, 152, 219, 0.2)",
-                borderColor: "#3498db",
+                label: "Profit",
+                data: [200000, 0, 300000, 0, 250000],
+                backgroundColor: "rgba(46, 204, 113, 0.2)",
+                borderColor: "#2ecc71",
+                fill: true,
+            },
+            {
+                label: "Loss",
+                data: [0, -50000, 0, -100000, 0],
+                backgroundColor: "rgba(231, 76, 60, 0.2)",
+                borderColor: "#e74c3c",
                 fill: true,
             },
         ],
@@ -65,26 +70,7 @@ const OwnerDashboard = () => {
 
     return (
         <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen">
-            {/* Year Selection */}
-            <div className="flex justify-between items-center mb-8">
-                <div className="p-4 bg-white shadow-lg rounded-lg flex items-center">
-                    <label htmlFor="year" className="font-semibold mr-3 text-gray-700 text-lg">
-                        Select Year:
-                    </label>
-                    <select
-                        id="year"
-                        value={year}
-                        onChange={(e) => setYear(e.target.value)}
-                        className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-blue-300"
-                    >
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                    </select>
-                </div>
-
-                {/* User Management Button */}
+            <div className="flex justify-end mb-8">
                 <button
                     onClick={() => navigate('/admin/users')}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition duration-300"
@@ -93,15 +79,15 @@ const OwnerDashboard = () => {
                 </button>
             </div>
 
-            {/* Enhanced Stats with Real Data */}
+            {/* Stats Section */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Total Projects</h3>
                     <p className="text-2xl font-bold text-blue-500 mt-2">25</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                    <h3 className="text-lg font-semibold text-gray-800">Team Leads</h3>
-                    <p className="text-2xl font-bold text-purple-500 mt-2">8</p>
+                    <h3 className="text-lg font-semibold text-gray-800">Total Budget</h3>
+                    <p className="text-2xl font-bold text-purple-500 mt-2">₹2,50,00,000</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Total Cost Allocated</h3>
@@ -115,27 +101,24 @@ const OwnerDashboard = () => {
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                {/* Pie Chart */}
                 <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-                        Overhead Cost Distribution
+                        Cost Distribution
                     </h3>
                     <div className="w-[250px] h-[250px]">
                         <Pie data={pieData} options={chartOptions} />
                     </div>
                 </div>
 
-                {/* Area Chart */}
                 <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-                        Revenue Growth
+                        Profit & Loss of Projects
                     </h3>
                     <div className="w-[300px] h-[250px]">
-                        <Line data={areaData} options={chartOptions} />
+                        <Line data={lineData} options={chartOptions} />
                     </div>
                 </div>
 
-                {/* Bar Chart */}
                 <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
                         Cost Comparison
