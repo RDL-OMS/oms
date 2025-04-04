@@ -15,6 +15,11 @@ const ProjectDetails = () => {
   const [totalExpectedCost, setTotalExpectedCost] = useState(0);
   const [totalActualCost, setTotalActualCost] = useState(0);
   const [budgetUtilization, setBudgetUtilization] = useState(0);
+  const [editingId, setEditingId] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [actionIndex, setActionIndex] = useState(null);
 
   // Get token from localStorage
   const getToken = () => {
@@ -23,6 +28,25 @@ const ProjectDetails = () => {
 
   // Get project data from location state
   const projectData = location.state?.project;
+
+  // Confirmation dialog handler
+  const handleConfirm = (message, action, index) => {
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setActionIndex(index);
+    setShowConfirm(true);
+  };
+
+  const executeAction = () => {
+    if (confirmAction) {
+      confirmAction(actionIndex);
+    }
+    setShowConfirm(false);
+  };
+
+  const cancelAction = () => {
+    setShowConfirm(false);
+  };
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -64,7 +88,7 @@ const ProjectDetails = () => {
           _id: item._id || Math.random().toString(36).substring(2, 9),
           overheadComponent: item.overheadComponent || 'Uncategorized',
           description: item.description || '',
-          subheads: Array.isArray(item.subheads) 
+          subheads: Array.isArray(item.subheads)
             ? item.subheads.map(sub => typeof sub === 'string' ? sub : sub.name)
             : []
         }));
@@ -78,50 +102,53 @@ const ProjectDetails = () => {
         const entriesData = await costEntriesResponse.json();
         let totalExpected = 0;
         let totalActual = 0;
-        
+       
         if (Array.isArray(entriesData)) {
-          const formattedRows = entriesData.length > 0 
+          const formattedRows = entriesData.length > 0
             ? entriesData.map((entry, index) => {
                 const expected = parseFloat(entry.expectedCost) || 0;
                 const actual = parseFloat(entry.actualCost) || 0;
                 totalExpected += expected;
                 totalActual += actual;
-                
+               
                 return {
-                  id: `${projectId}-${index}`,
+                  id: entry._id || `${projectId}-${index}`,
                   overhead: entry.overhead || "",
                   subhead: entry.subhead || "",
                   description: entry.description || "",
                   expectedCost: expected.toString(),
                   actualCost: actual.toString(),
                   variance: entry.variance || "0",
-                  isExisting: true
+                  isExisting: true,
+                  isEditing: false
                 };
               })
-            : [{ 
+            : [{
                 id: `${projectId}-new-${Date.now()}`,
-                overhead: "", 
-                subhead: "", 
-                description: "", 
-                expectedCost: "", 
-                actualCost: "", 
+                overhead: "",
+                subhead: "",
+                description: "",
+                expectedCost: "",
+                actualCost: "",
                 variance: "",
-                isExisting: false 
+                isExisting: false,
+                isEditing: true
               }];
-          
+         
           setRows(formattedRows);
           setTotalExpectedCost(totalExpected);
           setTotalActualCost(totalActual);
         } else {
-          setRows([{ 
+          setRows([{
             id: `${projectId}-new-${Date.now()}`,
-            overhead: "", 
-            subhead: "", 
-            description: "", 
-            expectedCost: "", 
-            actualCost: "", 
+            overhead: "",
+            subhead: "",
+            description: "",
+            expectedCost: "",
+            actualCost: "",
             variance: "",
-            isExisting: false 
+            isExisting: false,
+            isEditing: true
           }]);
         }
 
@@ -178,15 +205,16 @@ const ProjectDetails = () => {
   const addRow = () => {
     setRows([
       ...rows,
-      { 
+      {
         id: `${project?.projectId}-new-${Date.now()}`,
-        overhead: "", 
-        subhead: "", 
-        description: "", 
-        expectedCost: "", 
-        actualCost: "", 
+        overhead: "",
+        subhead: "",
+        description: "",
+        expectedCost: "",
+        actualCost: "",
         variance: "",
-        isExisting: false
+        isExisting: false,
+        isEditing: true
       },
     ]);
   };
@@ -198,9 +226,33 @@ const ProjectDetails = () => {
     setRows(updatedRows);
   };
 
+  const startEditing = (index) => {
+    if (editingId) {
+      setError('Please finish editing the current row first');
+      return;
+    }
+   
+    const updatedRows = [...rows];
+    updatedRows[index].isEditing = true;
+    setRows(updatedRows);
+    setEditingId(updatedRows[index].id);
+  };
+
+  const cancelEditing = (index) => {
+    const updatedRows = [...rows];
+    if (updatedRows[index].isExisting) {
+      updatedRows[index].isEditing = false;
+    } else {
+      // If it's a new row that hasn't been saved yet, remove it
+      updatedRows.splice(index, 1);
+    }
+    setRows(updatedRows);
+    setEditingId(null);
+  };
+
   const validateRows = () => {
     for (const row of rows) {
-      if (!row.isExisting) {
+      if (row.isEditing) {
         if (!row.overhead) return "Please select an overhead for all rows";
         if (!row.subhead) return "Please select a subhead for all rows";
         if (isNaN(parseFloat(row.expectedCost))) return "Please enter valid expected costs";
@@ -226,7 +278,18 @@ const ProjectDetails = () => {
         throw new Error("No token provided");
       }
 
-      const rowsToSave = rows.filter(row => !row.isExisting);
+      // Prepare data for saving
+      const entriesToSave = rows
+        .filter(row => row.isEditing)
+        .map(row => ({
+          id: row.isExisting ? row.id : undefined,
+          overheadComponent: row.overhead,
+          subhead: row.subhead,
+          description: row.description,
+          expectedCost: parseFloat(row.expectedCost) || 0,
+          actualCost: parseFloat(row.actualCost) || 0,
+          variance: parseFloat(row.variance) || 0
+        }));
 
       const response = await fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries`, {
         method: 'POST',
@@ -235,14 +298,7 @@ const ProjectDetails = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          entries: rowsToSave.map(row => ({
-            overheadComponent: row.overhead,
-            subhead: row.subhead,
-            description: row.description,
-            expectedCost: parseFloat(row.expectedCost) || 0,
-            actualCost: parseFloat(row.actualCost) || 0,
-            variance: parseFloat(row.variance) || 0
-          }))
+          entries: entriesToSave
         })
       });
 
@@ -251,36 +307,33 @@ const ProjectDetails = () => {
         throw new Error(errorData.message || 'Failed to save cost entries');
       }
 
-      // Refresh the data with authorization
-      const costEntriesResponse = await fetch(
-        `http://localhost:5000/api/projects/cost-entries/${project?.projectId}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      const entriesData = await costEntriesResponse.json();
-      
-      let totalExpected = 0;
-      let totalActual = 0;
-      const formattedRows = entriesData.map((entry, index) => {
-        const expected = parseFloat(entry.expectedCost) || 0;
-        const actual = parseFloat(entry.actualCost) || 0;
-        totalExpected += expected;
-        totalActual += actual;
-        
-        return {
-          id: `${project?.projectId}-${index}`,
-          overhead: entry.overhead || "",
-          subhead: entry.subhead || "",
-          description: entry.description || "",
-          expectedCost: expected.toString(),
-          actualCost: actual.toString(),
-          variance: entry.variance || "0",
-          isExisting: true
-        };
+      // Update the existing rows in place
+      const updatedRows = rows.map(row => {
+        if (row.isEditing) {
+          return {
+            ...row,
+            isEditing: false,
+            isExisting: true
+          };
+        }
+        return row;
       });
 
-      setRows(formattedRows);
+      // Recalculate totals
+      let totalExpected = 0;
+      let totalActual = 0;
+      updatedRows.forEach(row => {
+        if (row.isExisting) {
+          totalExpected += parseFloat(row.expectedCost) || 0;
+          totalActual += parseFloat(row.actualCost) || 0;
+        }
+      });
+
+      setRows(updatedRows);
       setTotalExpectedCost(totalExpected);
       setTotalActualCost(totalActual);
+      setEditingId(null);
+
     } catch (err) {
       console.error('Error saving cost entries:', err);
       setError(err.message || 'Failed to save cost entries');
@@ -292,13 +345,77 @@ const ProjectDetails = () => {
     }
   };
 
+  const deleteCostEntry = async (id, index) => {
+    handleConfirm(
+      "Are you sure you want to delete this cost entry?",
+      async (idx) => {
+        try {
+          const token = getToken();
+          if (!token) {
+            throw new Error("No token provided");
+          }
+
+          const response = await fetch(`http://localhost:5000/api/projects/cost-entries/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to delete cost entry');
+          }
+
+          // Remove the row from local state
+          const updatedRows = [...rows];
+          updatedRows.splice(idx, 1);
+
+          // If we deleted the last row, add a new empty row
+          if (updatedRows.length === 0) {
+            updatedRows.push({
+              id: `${project?.projectId}-new-${Date.now()}`,
+              overhead: "",
+              subhead: "",
+              description: "",
+              expectedCost: "",
+              actualCost: "",
+              variance: "",
+              isExisting: false,
+              isEditing: true
+            });
+          }
+
+          setRows(updatedRows);
+
+          // Recalculate totals
+          let totalExpected = 0;
+          let totalActual = 0;
+          updatedRows.forEach(row => {
+            if (row.isExisting) {
+              totalExpected += parseFloat(row.expectedCost) || 0;
+              totalActual += parseFloat(row.actualCost) || 0;
+            }
+          });
+          setTotalExpectedCost(totalExpected);
+          setTotalActualCost(totalActual);
+
+        } catch (err) {
+          console.error('Error deleting cost entry:', err);
+          setError(err.message || 'Failed to delete cost entry');
+        }
+      },
+      index
+    );
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
     }).format(amount);
   };
-  
+ 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -312,8 +429,8 @@ const ProjectDetails = () => {
     return (
       <div className="p-6 max-w-5xl mx-auto pt-20">
         <div className="text-red-500 mb-4">{error}</div>
-        <button 
-          onClick={() => navigate('/ProjectList')} 
+        <button
+          onClick={() => navigate('/ProjectList')}
           className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
         >
           Back to Projects
@@ -328,10 +445,33 @@ const ProjectDetails = () => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto pt-20">
+      {/* Confirmation Dialog */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-medium mb-4">{confirmMessage}</h3>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={cancelAction}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeAction}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Project: {project.name} [{project.projectId}]</h1>
-        <button 
-          onClick={() => navigate('/ProjectList')} 
+        <button
+          onClick={() => navigate('/ProjectList')}
           className="text-gray-600 hover:text-gray-800"
         >
           ← Back to Projects
@@ -341,7 +481,7 @@ const ProjectDetails = () => {
       {/* Budget Summary Section */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Budget Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="border p-4 rounded-lg">
             <h3 className="font-medium text-gray-700 mb-2">Total Budget</h3>
             <p className="text-2xl font-bold text-blue-600">{formatCurrency(project.budget)}</p>
@@ -354,12 +494,25 @@ const ProjectDetails = () => {
             <h3 className="font-medium text-gray-700 mb-2">Total Actual Cost</h3>
             <p className="text-2xl font-bold text-purple-600">{formatCurrency(totalActualCost)}</p>
           </div>
+          <div className={`border p-4 rounded-lg ${
+            (project.budget - totalActualCost) >= 0 ? 'bg-green-50' : 'bg-red-50'
+          }`}>
+            <h3 className="font-medium text-gray-700 mb-2">Profit/Loss</h3>
+            <p className={`text-2xl font-bold ${
+              (project.budget - totalActualCost) >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {formatCurrency(project.budget - totalActualCost)}
+            </p>
+            <p className="text-sm mt-1">
+              {((project.budget - totalActualCost) / project.budget * 100).toFixed(2)}% margin
+            </p>
+          </div>
         </div>
         <div className="mt-4">
           <h3 className="font-medium text-gray-700 mb-2">Budget Utilization</h3>
           <div className="w-full bg-gray-200 rounded-full h-4">
-            <div 
-              className="bg-blue-600 h-4 rounded-full" 
+            <div
+              className="bg-blue-600 h-4 rounded-full"
               style={{ width: `${Math.min(budgetUtilization, 100)}%` }}
             ></div>
           </div>
@@ -372,7 +525,7 @@ const ProjectDetails = () => {
       {/* Project Information Section */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Project Information</h2>
-        
+       
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <h3 className="font-medium text-gray-700">Description</h3>
@@ -415,9 +568,7 @@ const ProjectDetails = () => {
                 <tr key={row.id} className="hover:bg-gray-50 even:bg-gray-50">
                   <td className="p-3 border">{index + 1}</td>
                   <td className="p-3 border">
-                    {row.isExisting ? (
-                      <div className="p-2">{row.overhead}</div>
-                    ) : (
+                    {row.isEditing ? (
                       <select
                         value={row.overhead}
                         onChange={(e) => handleInputChange(index, "overhead", e.target.value)}
@@ -431,12 +582,12 @@ const ProjectDetails = () => {
                           </option>
                         ))}
                       </select>
+                    ) : (
+                      <div className="p-2">{row.overhead}</div>
                     )}
                   </td>
                   <td className="p-3 border">
-                    {row.isExisting ? (
-                      <div className="p-2">{row.subhead}</div>
-                    ) : (
+                    {row.isEditing ? (
                       <select
                         value={row.subhead}
                         onChange={(e) => handleInputChange(index, "subhead", e.target.value)}
@@ -452,12 +603,12 @@ const ProjectDetails = () => {
                             </option>
                           ))}
                       </select>
+                    ) : (
+                      <div className="p-2">{row.subhead}</div>
                     )}
                   </td>
                   <td className="p-3 border">
-                    {row.isExisting ? (
-                      <div className="p-2">{row.description}</div>
-                    ) : (
+                    {row.isEditing ? (
                       <input
                         type="text"
                         value={row.description}
@@ -465,12 +616,12 @@ const ProjectDetails = () => {
                         className="p-2 w-full border rounded-md"
                         placeholder="Enter description"
                       />
+                    ) : (
+                      <div className="p-2">{row.description}</div>
                     )}
                   </td>
                   <td className="p-3 border">
-                    {row.isExisting ? (
-                      <div className="p-2">{formatCurrency(parseFloat(row.expectedCost))}</div>
-                    ) : (
+                    {row.isEditing ? (
                       <input
                         type="number"
                         value={row.expectedCost}
@@ -479,12 +630,12 @@ const ProjectDetails = () => {
                         placeholder="0.00"
                         required
                       />
+                    ) : (
+                      <div className="p-2">{formatCurrency(parseFloat(row.expectedCost))}</div>
                     )}
                   </td>
                   <td className="p-3 border">
-                    {row.isExisting ? (
-                      <div className="p-2">{formatCurrency(parseFloat(row.actualCost))}</div>
-                    ) : (
+                    {row.isEditing ? (
                       <input
                         type="number"
                         value={row.actualCost}
@@ -493,20 +644,56 @@ const ProjectDetails = () => {
                         placeholder="0.00"
                         required
                       />
+                    ) : (
+                      <div className="p-2">{formatCurrency(parseFloat(row.actualCost))}</div>
                     )}
                   </td>
                   <td className={`p-3 border ${row.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
                     {row.variance !== "" ? `${parseFloat(row.variance).toFixed(2)}%` : "--"}
                   </td>
                   <td className="p-3 border text-center">
-                    {!row.isExisting && rows.length > 1 && (
-                      <button
-                        onClick={() => removeRow(index)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Remove row"
-                      >
-                        ×
-                      </button>
+                    {row.isEditing ? (
+                      <div className="flex space-x-2 justify-center">
+                        <button
+                          onClick={() => cancelEditing(index)}
+                          className="text-gray-500 hover:text-gray-700"
+                          title="Cancel"
+                        >
+                          ✕
+                        </button>
+                        <button
+                          onClick={saveCostEntries}
+                          className="text-green-500 hover:text-green-700"
+                          title="Save"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex space-x-2 justify-center">
+                        <button
+                          onClick={() => startEditing(index)}
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Edit"
+                          disabled={!!editingId}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={() => row.isExisting ?
+                            handleConfirm(
+                              "Are you sure you want to delete this cost entry?",
+                              (idx) => deleteCostEntry(row.id, idx),
+                              index
+                            ) :
+                            removeRow(index)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Delete"
+                          disabled={!!editingId}
+                        >
+                          ×
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -519,16 +706,19 @@ const ProjectDetails = () => {
           <button
             onClick={addRow}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+            disabled={!!editingId}
           >
             Add Row
           </button>
-          <button
-            onClick={saveCostEntries}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {editingId && (
+            <button
+              onClick={saveCostEntries}
+              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -536,3 +726,6 @@ const ProjectDetails = () => {
 };
 
 export default ProjectDetails;
+
+
+
