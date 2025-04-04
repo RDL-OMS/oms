@@ -58,6 +58,8 @@ router.get('/getProjects/:id/:role',projectController.getProjectsUM)
 
 router.post('/createproject', projectController.createProject);
 
-router.post('/:id/cost-entries',projectController.saveCostEntries)
+router.post('/:id/cost-entries',projectController.saveCostEntries);
+
+router.delete('/cost-entries/:id',projectController.deleteCostEntry)
 
 module.exports = router;

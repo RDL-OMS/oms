@@ -34,8 +34,8 @@ const UserSchema = new mongoose.Schema({
   },
   employeeId: { 
     type: String, 
-    unique: true, 
-    required: true 
+    unique: true 
+    // required: true 
   }
 });
 

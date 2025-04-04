@@ -14,6 +14,16 @@ const UserManagement = () => {
     const [userProjects, setUserProjects] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editedUser, setEditedUser] = useState(null);
+    const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [newUser, setNewUser] = useState({
+        username: '',
+        name: '',
+        email: '',
+        password: '',
+        role: 'member',
+        employeeId: ''
+    });
+    const [passwordError, setPasswordError] = useState('');
     const navigate = useNavigate();
 
     const roles = ['owner', 'teamlead', 'member'];
@@ -132,6 +142,20 @@ const UserManagement = () => {
         setEditedUser(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleNewUserInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewUser(prev => ({ ...prev, [name]: value }));
+        
+        // Validate password if it's the password field
+        if (name === 'password') {
+            if (value.length > 0 && value.length < 6) {
+                setPasswordError('Password must be at least 6 characters');
+            } else {
+                setPasswordError('');
+            }
+        }
+    };
+
     const saveChanges = () => {
         if (!editedUser) return;
 
@@ -146,6 +170,49 @@ const UserManagement = () => {
         // Exit editing mode
         setIsEditing(false);
         setEditedUser(null);
+    };
+
+    const handleAddUser = async () => {
+        // Validate inputs
+        if (!newUser.username || !newUser.name || !newUser.email || !newUser.password || !newUser.role) {
+            setError('All fields except Employee ID are required');
+            return;
+        }
+
+        if (passwordError) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/users/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify(newUser)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to add user');
+            }
+
+            const data = await response.json();
+            setUsers(prev => [...prev, data.data]);
+            setShowAddUserModal(false);
+            setNewUser({
+                username: '',
+                name: '',
+                email: '',
+                password: '',
+                role: 'member',
+                employeeId: ''
+            });
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        }
     };
 
     // Group users by role
@@ -180,12 +247,20 @@ const UserManagement = () => {
         <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-                <button 
-                    onClick={() => navigate('/admin/dashboard')}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-                >
-                    Back to Dashboard
-                </button>
+                <div className="flex space-x-4">
+                    <button 
+                        onClick={() => setShowAddUserModal(true)}
+                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                    >
+                        Add New User
+                    </button>
+                    <button 
+                        onClick={() => navigate('/admin/dashboard')}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+                    >
+                        Back to Dashboard
+                    </button>
+                </div>
             </div>
 
             {users.length === 0 ? (
@@ -348,6 +423,21 @@ const UserManagement = () => {
 
                             <div className="space-y-4">
                                 <div>
+                                    <h4 className="font-medium text-gray-700">Username</h4>
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            name="username"
+                                            value={editedUser.username}
+                                            onChange={handleInputChange}
+                                            className="w-full p-1 border rounded"
+                                        />
+                                    ) : (
+                                        <p className="text-gray-900">{selectedUser.username}</p>
+                                    )}
+                                </div>
+
+                                <div>
                                     <h4 className="font-medium text-gray-700">User ID</h4>
                                     {isEditing ? (
                                         <input
@@ -447,6 +537,147 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
+
+           {/* Add User Modal */}
+{showAddUserModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Add New User</h3>
+                <button 
+                    onClick={() => {
+                        setShowAddUserModal(false);
+                        setError(null);
+                        setPasswordError('');
+                    }}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                    ×
+                </button>
+            </div>
+
+            {error && (
+                <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                    {error}
+                </div>
+            )}
+
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Username *
+                    </label>
+                    <input
+                        type="text"
+                        name="username"
+                        value={newUser.username}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name *
+                    </label>
+                    <input
+                        type="text"
+                        name="name"
+                        value={newUser.name}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email *
+                    </label>
+                    <input
+                        type="email"
+                        name="email"
+                        value={newUser.email}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Password *
+                    </label>
+                    <input
+                        type="password"
+                        name="password"
+                        value={newUser.password}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                    />
+                    {passwordError && (
+                        <p className="text-red-500 text-xs mt-1">{passwordError}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Role *
+                    </label>
+                    <select
+                        name="role"
+                        value={newUser.role}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                    >
+                        {roles.map(role => (
+                            <option key={role} value={role}>
+                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Employee ID
+                    </label>
+                    <input
+                        type="text"
+                        name="employeeId"
+                        value={newUser.employeeId}
+                        onChange={handleNewUserInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        placeholder="Will be auto-generated if left blank"
+                    />
+                </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+                <button
+                    onClick={() => {
+                        setShowAddUserModal(false);
+                        setError(null);
+                        setPasswordError('');
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleAddUser}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    disabled={!!passwordError}
+                >
+                    Add User
+                </button>
+            </div>
+        </div>
+    </div>
+)}
         </div>
     );
 };

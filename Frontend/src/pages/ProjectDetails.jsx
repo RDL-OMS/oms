@@ -20,6 +20,7 @@ const ProjectDetails = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [actionIndex, setActionIndex] = useState(null);
+  const[teamDetails, setTeamDetails] = useState(null);
 
   // Get token from localStorage
   const getToken = () => {
@@ -63,26 +64,45 @@ const ProjectDetails = () => {
           throw new Error("Project data is missing. Please navigate from the projects list.");
         }
 
-        // Set project from the passed data
+        // Set initial project data
         setProject(projectData);
 
-        const projectId = projectData.projectId;
 
-        // Fetch costing data with authorization
+        const projectId = projectData.projectId;
         const headers = {
           'Authorization': `Bearer ${token}`
         };
 
-        const [overheadsResponse, costEntriesResponse] = await Promise.all([
+        const tl = projectData.teamLead._id
+
+
+        // Fetch all required data in parallel
+        const [overheadsResponse, costEntriesResponse, teamLeadResponse, membersResponse] = await Promise.all([
           fetch(`http://localhost:5000/api/overheads/get/${projectId}`, { headers }),
-          fetch(`http://localhost:5000/api/projects/cost-entries/${projectId}`, { headers })
+          fetch(`http://localhost:5000/api/projects/cost-entries/${projectId}`, { headers }),
+          // Fetch team lead details
+          projectData.teamLead ?
+            fetch(`http://localhost:5000/api/users/${tl}`, { headers }) :
+            Promise.resolve({ ok: false }),
+          // Fetch all members details
+          projectData.members?.length > 0 ?
+            fetch(`http://localhost:5000/api/users/bulk`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ userIds: projectData.members })
+            }) :
+            Promise.resolve({ ok: false })
         ]);
 
+
+        // Process overheads data
         if (!overheadsResponse.ok) {
           const errorData = await overheadsResponse.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to fetch overheads');
         }
-
         const overheadsData = await overheadsResponse.json();
         const validatedOverheads = (overheadsData.data || overheadsData).map(item => ({
           _id: item._id || Math.random().toString(36).substring(2, 9),
@@ -94,47 +114,47 @@ const ProjectDetails = () => {
         }));
         setCostingData(validatedOverheads);
 
+        // Process cost entries
         if (!costEntriesResponse.ok) {
           const errorData = await costEntriesResponse.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to fetch cost entries');
         }
-
         const entriesData = await costEntriesResponse.json();
         let totalExpected = 0;
         let totalActual = 0;
-       
+
         if (Array.isArray(entriesData)) {
           const formattedRows = entriesData.length > 0
             ? entriesData.map((entry, index) => {
-                const expected = parseFloat(entry.expectedCost) || 0;
-                const actual = parseFloat(entry.actualCost) || 0;
-                totalExpected += expected;
-                totalActual += actual;
-               
-                return {
-                  id: entry._id || `${projectId}-${index}`,
-                  overhead: entry.overhead || "",
-                  subhead: entry.subhead || "",
-                  description: entry.description || "",
-                  expectedCost: expected.toString(),
-                  actualCost: actual.toString(),
-                  variance: entry.variance || "0",
-                  isExisting: true,
-                  isEditing: false
-                };
-              })
+              const expected = parseFloat(entry.expectedCost) || 0;
+              const actual = parseFloat(entry.actualCost) || 0;
+              totalExpected += expected;
+              totalActual += actual;
+
+              return {
+                id: entry._id || `${projectId}-${index}`,
+                overhead: entry.overhead || "",
+                subhead: entry.subhead || "",
+                description: entry.description || "",
+                expectedCost: expected.toString(),
+                actualCost: actual.toString(),
+                variance: entry.variance || "0",
+                isExisting: true,
+                isEditing: false
+              };
+            })
             : [{
-                id: `${projectId}-new-${Date.now()}`,
-                overhead: "",
-                subhead: "",
-                description: "",
-                expectedCost: "",
-                actualCost: "",
-                variance: "",
-                isExisting: false,
-                isEditing: true
-              }];
-         
+              id: `${projectId}-new-${Date.now()}`,
+              overhead: "",
+              subhead: "",
+              description: "",
+              expectedCost: "",
+              actualCost: "",
+              variance: "",
+              isExisting: false,
+              isEditing: true
+            }];
+
           setRows(formattedRows);
           setTotalExpectedCost(totalExpected);
           setTotalActualCost(totalActual);
@@ -151,6 +171,27 @@ const ProjectDetails = () => {
             isEditing: true
           }]);
         }
+
+        // Process team lead and members data
+
+        if (teamLeadResponse.ok) {
+          const teamLeadData = await teamLeadResponse.json();
+          // Make sure the data has the expected structure;
+          
+          setTeamDetails(teamLeadData)
+        }
+
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json();
+          teamDetails.members = membersData;
+        }
+
+
+        // Update project with team details
+        setProject(prev => ({
+          ...prev,
+          ...teamDetails
+        }));
 
       } catch (err) {
         console.error("Error loading project data:", err);
@@ -231,7 +272,7 @@ const ProjectDetails = () => {
       setError('Please finish editing the current row first');
       return;
     }
-   
+
     const updatedRows = [...rows];
     updatedRows[index].isEditing = true;
     setRows(updatedRows);
@@ -307,27 +348,69 @@ const ProjectDetails = () => {
         throw new Error(errorData.message || 'Failed to save cost entries');
       }
 
+      const responseData = await response.json();
+
+      // Handle different response formats
+      let savedEntries = [];
+      if (Array.isArray(responseData)) {
+        savedEntries = responseData;
+      } else if (responseData.data) {
+        savedEntries = Array.isArray(responseData.data) ? responseData.data : [responseData.data];
+      } else {
+        savedEntries = [responseData];
+      }
+
       // Update the existing rows in place
       const updatedRows = rows.map(row => {
-        if (row.isEditing) {
+        if (!row.isEditing) return row;
+
+        // Try to find matching saved entry
+        let savedEntry;
+
+        // First try to match by ID for existing entries
+        if (row.isExisting) {
+          savedEntry = savedEntries.find(entry => entry._id === row.id);
+        }
+
+        // If no match by ID, try to match by content (for new entries)
+        if (!savedEntry) {
+          savedEntry = savedEntries.find(entry =>
+            entry.overheadComponent === row.overhead &&
+            entry.subhead === row.subhead
+          );
+        }
+
+        if (!savedEntry) {
+          console.warn('No matching saved entry found for:', row);
           return {
             ...row,
             isEditing: false,
-            isExisting: true
+            isExisting: true // Assume it was saved even if we can't match
           };
         }
-        return row;
+
+        return {
+          ...row,
+          id: savedEntry._id || row.id,
+          isEditing: false,
+          isExisting: true,
+          expectedCost: savedEntry.expectedCost?.toString() || row.expectedCost,
+          actualCost: savedEntry.actualCost?.toString() || row.actualCost,
+          variance: savedEntry.variance?.toString() || row.variance
+        };
       });
 
       // Recalculate totals
-      let totalExpected = 0;
-      let totalActual = 0;
-      updatedRows.forEach(row => {
-        if (row.isExisting) {
-          totalExpected += parseFloat(row.expectedCost) || 0;
-          totalActual += parseFloat(row.actualCost) || 0;
-        }
-      });
+      const { totalExpected, totalActual } = updatedRows.reduce(
+        (acc, row) => {
+          if (row.isExisting) {
+            acc.totalExpected += parseFloat(row.expectedCost) || 0;
+            acc.totalActual += parseFloat(row.actualCost) || 0;
+          }
+          return acc;
+        },
+        { totalExpected: 0, totalActual: 0 }
+      );
 
       setRows(updatedRows);
       setTotalExpectedCost(totalExpected);
@@ -415,7 +498,7 @@ const ProjectDetails = () => {
       currency: 'INR'
     }).format(amount);
   };
- 
+
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -494,13 +577,11 @@ const ProjectDetails = () => {
             <h3 className="font-medium text-gray-700 mb-2">Total Actual Cost</h3>
             <p className="text-2xl font-bold text-purple-600">{formatCurrency(totalActualCost)}</p>
           </div>
-          <div className={`border p-4 rounded-lg ${
-            (project.budget - totalActualCost) >= 0 ? 'bg-green-50' : 'bg-red-50'
-          }`}>
-            <h3 className="font-medium text-gray-700 mb-2">Profit/Loss</h3>
-            <p className={`text-2xl font-bold ${
-              (project.budget - totalActualCost) >= 0 ? 'text-green-600' : 'text-red-600'
+          <div className={`border p-4 rounded-lg ${(project.budget - totalActualCost) >= 0 ? 'bg-green-50' : 'bg-red-50'
             }`}>
+            <h3 className="font-medium text-gray-700 mb-2">Profit/Loss</h3>
+            <p className={`text-2xl font-bold ${(project.budget - totalActualCost) >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
               {formatCurrency(project.budget - totalActualCost)}
             </p>
             <p className="text-sm mt-1">
@@ -525,7 +606,7 @@ const ProjectDetails = () => {
       {/* Project Information Section */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Project Information</h2>
-       
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <h3 className="font-medium text-gray-700">Description</h3>
@@ -534,6 +615,47 @@ const ProjectDetails = () => {
           <div>
             <h3 className="font-medium text-gray-700">Created At</h3>
             <p className="text-gray-600">{formatDate(project.createdAt)}</p>
+          </div>
+        </div>
+
+        {/* Team Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-medium text-gray-700">Team Lead</h3>
+            {teamDetails.data  ? (
+              <div className="flex items-center mt-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
+                  {teamDetails.data.name?.charAt(0) || 'T'}
+                </div>
+                <div className="ml-3">
+                  <p className="text-gray-800 font-medium">{teamDetails.data.name || 'Team Lead'}</p>
+                  <p className="text-gray-500 text-sm">{teamDetails.data.email || ''}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500">No team lead assigned</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-medium text-gray-700">Team Members</h3>
+            {project.members && Array.isArray(project.members) && project.members.length > 0 ? (
+              <div className="mt-2 space-y-2">
+                {project.members.map((member, index) => (
+                  <div key={index} className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
+                      {member.name?.charAt(0) || 'M'}
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-gray-800 font-medium">{member.name || 'Member'}</p>
+                      <p className="text-gray-500 text-sm">{member.email || ''}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No team members assigned</p>
+            )}
           </div>
         </div>
       </div>
@@ -681,12 +803,9 @@ const ProjectDetails = () => {
                         </button>
                         <button
                           onClick={() => row.isExisting ?
-                            handleConfirm(
-                              "Are you sure you want to delete this cost entry?",
-                              (idx) => deleteCostEntry(row.id, idx),
-                              index
-                            ) :
-                            removeRow(index)}
+                            deleteCostEntry(row.id, index) :
+                            removeRow(index)
+                          }
                           className="text-red-500 hover:text-red-700"
                           title="Delete"
                           disabled={!!editingId}
@@ -726,6 +845,3 @@ const ProjectDetails = () => {
 };
 
 export default ProjectDetails;
-
-
-

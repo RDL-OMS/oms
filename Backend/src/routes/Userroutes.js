@@ -13,7 +13,7 @@ router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
 
 // Create new user (owners only)
-router.post('/', userController.createUser);
+router.post('/add', userController.createUser);
 
 // Update user role (owners only)
 router.put('/:id/role', userController.updateUserRole);

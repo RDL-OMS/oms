@@ -71,6 +71,73 @@ exports.getUserById = async (req, res) => {
   }
 };
 
+// // Create new user (only for owners)
+// exports.createUser = async (req, res) => {
+//   try {
+//     // Only owners can create users
+//     if (req.user.role !== 'owner') {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Only owners can create users'
+//       });
+//     }
+
+//     const { name, email, role } = req.body;
+
+//     // Basic validation
+//     if (!name || !email || !role) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Name, email and role are required'
+//       });
+//     }
+
+//     // Check if user already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(409).json({
+//         success: false,
+//         message: 'User with this email already exists'
+//       });
+//     }
+
+//     // Generate temporary password
+//     const tempPassword = Math.random().toString(36).slice(-8);
+//     const hashedPassword = await generatePasswordHash(tempPassword);
+
+//     // Create user
+//     const newUser = await User.create({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       role,
+//       createdBy: req.user.id
+//     });
+
+//     // Send welcome email (async - don't await)
+//     sendWelcomeEmail(email, name, tempPassword).catch(console.error);
+
+//     // Return response without sensitive data
+//     const userResponse = newUser.toObject();
+//     delete userResponse.password;
+//     delete userResponse.__v;
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'User created successfully',
+//       data: userResponse
+//     });
+
+//   } catch (error) {
+//     console.error('Error creating user:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//     });
+//   }
+// };
+
 // Create new user (only for owners)
 exports.createUser = async (req, res) => {
   try {
@@ -82,40 +149,54 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    const { name, email, role } = req.body;
+    const { username, name, email, password, role, employeeId } = req.body;
 
     // Basic validation
-    if (!name || !email || !role) {
+    if (!username || !name || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: 'Name, email and role are required'
+        message: 'Username, name, email, password and role are required'
       });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Check if user already exists by email or username
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: 'User with this email already exists'
+        message: 'User with this email or username already exists'
       });
     }
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await generatePasswordHash(tempPassword);
+    // Hash the password
+    const hashedPassword = await generatePasswordHash(password);
 
-    // Create user
-    const newUser = await User.create({
+    // Create user with or without provided employeeId
+    const userData = {
+      username,
       name,
       email,
       password: hashedPassword,
       role,
       createdBy: req.user.id
-    });
+    };
 
-    // Send welcome email (async - don't await)
-    sendWelcomeEmail(email, name, tempPassword).catch(console.error);
+    // Only add employeeId if it was provided
+    if (employeeId && employeeId.trim() !== '') {
+      userData.employeeId = employeeId;
+    }
+    console.log("userdaata",userData);
+    
+
+    const newUser = await User.create(userData);
 
     // Return response without sensitive data
     const userResponse = newUser.toObject();
@@ -137,6 +218,9 @@ exports.createUser = async (req, res) => {
     });
   }
 };
+
+
+
 
 // Update user role (only for owners)
 exports.updateUserRole = async (req, res) => {

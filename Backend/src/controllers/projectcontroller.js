@@ -270,6 +270,7 @@ exports.getCostentriesID = async (req, res) => {
     }
 
     const formattedEntries = costEntries.map((entry, index) => ({
+      _id:entry._id,
       id: index + 1,
       overhead: entry.overheadComponent || "",
       subhead: entry.subhead || "",
@@ -329,7 +330,6 @@ exports.saveCostEntries = async (req, res) => {
 
     // Validate project exists
     const project = await Project.findOne({ projectId });
-    console.log("project", project._id);
 
     if (!project) {
       return res.status(404).json({
@@ -381,11 +381,9 @@ exports.saveCostEntries = async (req, res) => {
         variance: parseFloat(entry.variance) || 0
       });
     }
-    console.log("new overhead", validatedEntries);
 
     // Save all entries
     const savedEntries = await CostEntry.insertMany(validatedEntries);
-    console.log("saved", savedEntries);
 
     // Update project's cost entries reference
     await Project.findOneAndUpdate(
@@ -405,6 +403,52 @@ exports.saveCostEntries = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while saving cost entries',
+      error: error.message
+    });
+  }
+};
+
+// Delete a cost entry
+exports.deleteCostEntry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First get the entry to find the associated project
+    const entry = await CostEntry.findById(id);
+    if (!entry) {
+      return res.status(404).json({ message: 'Cost entry not found' });
+    }
+
+    // Check project access
+    const project = await Project.findOne({projectId:entry.projectId});
+    if (!project) {
+      return res.status(404).json({ message: 'Associated project not found' });
+    }
+
+    const hasAccess = req.user.role === 'owner' ||
+      project.teamLead.equals(req.user.id) ||
+      project.members.includes(req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: 'Not authorized to delete this cost entry'
+      });
+    }
+
+    // Delete the entry
+    await CostEntry.findByIdAndDelete(id);
+
+    // Remove from project's costEntries array
+    await Project.findByIdAndUpdate(
+      project._id,
+      { $pull: { costEntries: id } }
+    );
+
+    res.status(200).json({ message: 'Cost entry deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting cost entry:', error);
+    res.status(500).json({
+      message: 'Server error while deleting cost entry',
       error: error.message
     });
   }
