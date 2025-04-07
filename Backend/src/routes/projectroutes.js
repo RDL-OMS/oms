@@ -62,4 +62,7 @@ router.post('/:id/cost-entries',projectController.saveCostEntries);
 
 router.delete('/cost-entries/:id',projectController.deleteCostEntry)
 
+//owner dashboard
+router.get('/owner/dashboard',projectController.getOwnerDashboard)
+
 module.exports = router;

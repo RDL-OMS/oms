@@ -3,59 +3,93 @@ import { Pie, Bar, Line } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import "chart.js/auto";
+import dashboardService from "../../../services/DashboardService";
 import '../pages.css';
 
 const OwnerDashboard = () => {
     const navigate = useNavigate();
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        const decoded = jwtDecode(token);
-        const role = decoded.role;
-        if (!token || role !== 'owner') {
-            navigate("/", { replace: true });
-        }
+        const fetchData = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const decoded = jwtDecode(token);
+                const role = decoded.role;
+
+                if (!token || role !== 'owner') {
+                    navigate("/", { replace: true });
+                    return;
+                }
+
+                const data = await dashboardService.getDashboardData(token);
+                console.log("heyeyeyy",data);
+                
+                setDashboardData(data);
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, [navigate]);
 
+    if (loading) {
+        return <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (error) {
+        return <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen flex items-center justify-center">Error: {error}</div>;
+    }
+
+    if (!dashboardData) {
+        return <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen flex items-center justify-center">No data available</div>;
+    }
+
+    // Prepare chart data from dashboardData
     const pieData = {
-        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+        labels: dashboardData.projects.map(project => project.name),
         datasets: [
             {
-                data: [30, 20, 25, 15, 10],
+                data: dashboardData.projects.map(project => project.costAllocated),
                 backgroundColor: ["#3498db", "#2ecc71", "#f1c40f", "#e74c3c", "#9b59b6"],
             },
         ],
     };
 
     const barData = {
-        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+        labels: dashboardData.projects.map(project => project.name),
         datasets: [
             {
                 label: "Allocated Cost",
                 backgroundColor: "#2ecc71",
-                data: [500000, 400000, 700000, 600000, 900000],
+                data: dashboardData.projects.map(project => project.costAllocated),
             },
             {
                 label: "Actual Cost",
                 backgroundColor: "#e74c3c",
-                data: [450000, 350000, 650000, 550000, 850000],
+                data: dashboardData.projects.map(project => project.actualCost),
             },
         ],
     };
 
     const lineData = {
-        labels: ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+        labels: dashboardData.projects.map(project => project.name),
         datasets: [
             {
                 label: "Profit",
-                data: [200000, 0, 300000, 0, 250000],
+                data: dashboardData.projects.map(project => Math.max(0, project.profitLoss)),
                 backgroundColor: "rgba(46, 204, 113, 0.2)",
                 borderColor: "#2ecc71",
                 fill: true,
             },
             {
                 label: "Loss",
-                data: [0, -50000, 0, -100000, 0],
+                data: dashboardData.projects.map(project => Math.min(0, project.profitLoss)),
                 backgroundColor: "rgba(231, 76, 60, 0.2)",
                 borderColor: "#e74c3c",
                 fill: true,
@@ -83,19 +117,19 @@ const OwnerDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Total Projects</h3>
-                    <p className="text-2xl font-bold text-blue-500 mt-2">25</p>
+                    <p className="text-2xl font-bold text-blue-500 mt-2">{dashboardData.summary.totalProjects}</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Total Budget</h3>
-                    <p className="text-2xl font-bold text-purple-500 mt-2">₹2,50,00,000</p>
+                    <p className="text-2xl font-bold text-purple-500 mt-2">₹{dashboardData.summary.totalBudget.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Total Cost Allocated</h3>
-                    <p className="text-2xl font-bold text-green-500 mt-2">₹1,20,00,000</p>
+                    <p className="text-2xl font-bold text-green-500 mt-2">₹{dashboardData.summary.totalCostAllocated.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
                     <h3 className="text-lg font-semibold text-gray-800">Actual Cost</h3>
-                    <p className="text-2xl font-bold text-red-500 mt-2">₹95,00,000</p>
+                    <p className="text-2xl font-bold text-red-500 mt-2">₹{dashboardData.summary.totalActualCost.toLocaleString('en-IN')}</p>
                 </div>
             </div>
 

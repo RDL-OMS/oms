@@ -453,3 +453,118 @@ exports.deleteCostEntry = async (req, res) => {
     });
   }
 };
+
+
+exports.getOwnerDashboard = async (req, res) => {
+  try {
+    // Verify user is owner
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - Only owners can view this dashboard'
+      });
+    }
+
+    // Get all projects with basic info
+    const projects = await Project.find({})
+      .populate('teamLead', 'name email')
+      .lean();
+
+    // Get all cost entries grouped by project, filtering out null projects
+    const costEntries = await CostEntry.aggregate([
+      {
+        $match: {
+          project: { $ne: null } // Only include entries with non-null project reference
+        }
+      },
+      {
+        $group: {
+          _id: '$project',
+          totalExpectedCost: { $sum: '$expectedCost' },
+          totalActualCost: { $sum: '$actualCost' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Create a map of project costs for easy lookup
+    const projectCosts = {};
+    costEntries.forEach(entry => {
+      // Add additional null check just in case
+      if (entry._id) {
+        projectCosts[entry._id.toString()] = {
+          expectedCost: entry.totalExpectedCost,
+          actualCost: entry.totalActualCost
+        };
+      }
+    });
+
+    // Calculate totals
+    const totalBudget = projects.reduce((sum, project) => sum + (project.budget || 0), 0);
+    const totalCostAllocated = costEntries.reduce((sum, entry) => sum + (entry.totalExpectedCost || 0), 0);
+    const totalActualCost = costEntries.reduce((sum, entry) => sum + (entry.totalActualCost || 0), 0);
+    const totalProfitLoss = totalBudget - totalActualCost;
+
+    // Prepare dashboard data
+    const dashboardData = {
+      summary: {
+        totalProjects: projects.length,
+        totalBudget,
+        totalCostAllocated,
+        totalActualCost,
+        totalProfitLoss,
+        profitPercentage: totalBudget > 0 ? ((totalProfitLoss / totalBudget) * 100).toFixed(2) : 0
+      },
+      projects: projects.map(project => {
+        const costs = project._id && projectCosts[project._id.toString()] || {
+          expectedCost: 0,
+          actualCost: 0
+        };
+        console.log("costs",project.projectId,project.budget,costs);
+        
+        const projectProfitLoss = (project.budget || 0) - costs.actualCost;
+        
+        return {
+          id: project._id,
+          projectId: project.projectId,
+          name: project.name,
+          budget: project.budget || 0,
+          costAllocated: costs.expectedCost,
+          actualCost: costs.actualCost,
+          profitLoss: projectProfitLoss,
+          profitPercentage: project.budget > 0 ? ((projectProfitLoss / project.budget) * 100).toFixed(2) : 0,
+          teamLead: project.teamLead,
+          createdAt: project.createdAt
+        };
+      }),
+      costBreakdown: {
+        byProject: projects
+          .filter(project => project._id) // Filter out projects without IDs
+          .map(project => ({
+            name: project.name,
+            expected: projectCosts[project._id.toString()]?.expectedCost || 0,
+            actual: projectCosts[project._id.toString()]?.actualCost || 0
+          })),
+      },
+      warnings: {
+        projectsWithNullCosts: projects.length - Object.keys(projectCosts).length,
+        totalNullCostEntries: await CostEntry.countDocuments({ project: null })
+      }
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Dashboard data retrieved successfully',
+      data: dashboardData
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching dashboard data',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};

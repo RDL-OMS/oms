@@ -66,14 +66,18 @@ const ProjectDetails = () => {
 
         // Set initial project data
         setProject(projectData);
-
+        
+        console.log("project data1",projectData);
+        console.log("project data2",project);
 
         const projectId = projectData.projectId;
         const headers = {
           'Authorization': `Bearer ${token}`
         };
 
-        const tl = projectData.teamLead._id
+        const tl = projectData.teamLead?.['_id'] ?? null;
+        console.log("teamlead",tl);
+        
 
 
         // Fetch all required data in parallel
@@ -622,7 +626,7 @@ const ProjectDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h3 className="font-medium text-gray-700">Team Lead</h3>
-            {teamDetails.data  ? (
+            {teamDetails?.teamDetails?.data  ? (
               <div className="flex items-center mt-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
                   {teamDetails.data.name?.charAt(0) || 'T'}
