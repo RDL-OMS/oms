@@ -22,6 +22,16 @@ const ProjectDetails = () => {
   const [actionIndex, setActionIndex] = useState(null);
   const [teamDetails, setTeamDetails] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({});
+  
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEntry, setNewEntry] = useState({
+    overhead: "",
+    subhead: "",
+    description: "",
+    expectedCost: "",
+    actualCost: ""
+  });
 
   // Get token from localStorage
   const getToken = () => {
@@ -58,6 +68,67 @@ const ProjectDetails = () => {
     }));
   };
 
+  // Open modal for adding new cost entry
+  const openAddModal = () => {
+    setNewEntry({
+      overhead: "",
+      subhead: "",
+      description: "",
+      expectedCost: "",
+      actualCost: ""
+    });
+    setShowAddModal(true);
+    setError(null);
+  };
+
+  // Handle modal input changes
+  const handleModalInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewEntry(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Clear subhead when overhead changes
+    if (name === "overhead") {
+      setNewEntry(prev => ({
+        ...prev,
+        subhead: ""
+      }));
+    }
+  };
+
+  // Save new entry from modal
+  const saveNewEntry = () => {
+    // Validate inputs
+    if (!newEntry.overhead || !newEntry.subhead || 
+        isNaN(parseFloat(newEntry.expectedCost)) || 
+        isNaN(parseFloat(newEntry.actualCost))) {
+      setError("Please fill all fields with valid values");
+      return;
+    }
+
+    const expected = parseFloat(newEntry.expectedCost) || 0;
+    const actual = parseFloat(newEntry.actualCost) || 0;
+    const variance = expected !== 0 ? ((actual - expected) / expected) * 100 : 0;
+
+    const entry = {
+      id: `${project?.projectId}-new-${Date.now()}`,
+      overhead: newEntry.overhead,
+      subhead: newEntry.subhead,
+      description: newEntry.description,
+      expectedCost: expected.toString(),
+      actualCost: actual.toString(),
+      variance: variance.toFixed(2),
+      isExisting: false,
+      isEditing: true
+    };
+
+    setRows([...rows, entry]);
+    setShowAddModal(false);
+    setError(null);
+  };
+
   useEffect(() => {
     const fetchProjectData = async () => {
       try {
@@ -87,11 +158,9 @@ const ProjectDetails = () => {
         const [overheadsResponse, costEntriesResponse, teamLeadResponse, membersResponse] = await Promise.all([
           fetch(`http://localhost:5000/api/overheads/get/${projectId}`, { headers }),
           fetch(`http://localhost:5000/api/projects/cost-entries/${projectId}`, { headers }),
-          // Fetch team lead details
           projectData.teamLead ?
             fetch(`http://localhost:5000/api/users/${tl}`, { headers }) :
             Promise.resolve({ ok: false }),
-          // Fetch all members details
           projectData.members?.length > 0 ?
             fetch(`http://localhost:5000/api/users/bulk`, {
               method: 'POST',
@@ -149,33 +218,11 @@ const ProjectDetails = () => {
                 isEditing: false
               };
             })
-            : [{
-              id: `${projectId}-new-${Date.now()}`,
-              overhead: "",
-              subhead: "",
-              description: "",
-              expectedCost: "",
-              actualCost: "",
-              variance: "",
-              isExisting: false,
-              isEditing: true
-            }];
+            : [];
 
           setRows(formattedRows);
           setTotalExpectedCost(totalExpected);
           setTotalActualCost(totalActual);
-        } else {
-          setRows([{
-            id: `${projectId}-new-${Date.now()}`,
-            overhead: "",
-            subhead: "",
-            description: "",
-            expectedCost: "",
-            actualCost: "",
-            variance: "",
-            isExisting: false,
-            isEditing: true
-          }]);
         }
 
         // Process team lead and members data
@@ -242,23 +289,6 @@ const ProjectDetails = () => {
     setRows(updatedRows);
   };
 
-  const addRow = () => {
-    setRows([
-      ...rows,
-      {
-        id: `${project?.projectId}-new-${Date.now()}`,
-        overhead: "",
-        subhead: "",
-        description: "",
-        expectedCost: "",
-        actualCost: "",
-        variance: "",
-        isExisting: false,
-        isEditing: true
-      },
-    ]);
-  };
-
   const removeRow = (index) => {
     if (rows.length <= 1) return;
     const updatedRows = [...rows];
@@ -283,7 +313,6 @@ const ProjectDetails = () => {
     if (updatedRows[index].isExisting) {
       updatedRows[index].isEditing = false;
     } else {
-      // If it's a new row that hasn't been saved yet, remove it
       updatedRows.splice(index, 1);
     }
     setRows(updatedRows);
@@ -318,7 +347,6 @@ const ProjectDetails = () => {
         throw new Error("No token provided");
       }
 
-      // Prepare data for saving
       const entriesToSave = rows
         .filter(row => row.isEditing)
         .map(row => ({
@@ -349,7 +377,6 @@ const ProjectDetails = () => {
 
       const responseData = await response.json();
 
-      // Handle different response formats
       let savedEntries = [];
       if (Array.isArray(responseData)) {
         savedEntries = responseData;
@@ -359,19 +386,14 @@ const ProjectDetails = () => {
         savedEntries = [responseData];
       }
 
-      // Update the existing rows in place
       const updatedRows = rows.map(row => {
         if (!row.isEditing) return row;
 
-        // Try to find matching saved entry
         let savedEntry;
-
-        // First try to match by ID for existing entries
         if (row.isExisting) {
           savedEntry = savedEntries.find(entry => entry._id === row.id);
         }
 
-        // If no match by ID, try to match by content (for new entries)
         if (!savedEntry) {
           savedEntry = savedEntries.find(entry =>
             entry.overheadComponent === row.overhead &&
@@ -384,7 +406,7 @@ const ProjectDetails = () => {
           return {
             ...row,
             isEditing: false,
-            isExisting: true // Assume it was saved even if we can't match
+            isExisting: true
           };
         }
 
@@ -399,7 +421,6 @@ const ProjectDetails = () => {
         };
       });
 
-      // Recalculate totals
       const { totalExpected, totalActual } = updatedRows.reduce(
         (acc, row) => {
           if (row.isExisting) {
@@ -449,11 +470,9 @@ const ProjectDetails = () => {
             throw new Error(errorData.message || 'Failed to delete cost entry');
           }
 
-          // Remove the row from local state
           const updatedRows = [...rows];
           updatedRows.splice(idx, 1);
 
-          // If we deleted the last row, add a new empty row
           if (updatedRows.length === 0) {
             updatedRows.push({
               id: `${project?.projectId}-new-${Date.now()}`,
@@ -470,7 +489,6 @@ const ProjectDetails = () => {
 
           setRows(updatedRows);
 
-          // Recalculate totals
           let totalExpected = 0;
           let totalActual = 0;
           updatedRows.forEach(row => {
@@ -574,6 +592,114 @@ const ProjectDetails = () => {
                 className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Cost Entry Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h3 className="text-xl font-semibold mb-4">Add New Cost Entry</h3>
+            
+            {error && <div className="text-red-500 mb-4">{error}</div>}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-700 mb-2">Cost Head</label>
+                <select
+                  name="overhead"
+                  value={newEntry.overhead}
+                  onChange={handleModalInputChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                >
+                  <option value="">Select Cost Head</option>
+                  {Object.keys(overheadOptions).map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2">Subhead</label>
+                <select
+                  name="subhead"
+                  value={newEntry.subhead}
+                  onChange={handleModalInputChange}
+                  className="w-full p-2 border rounded-md"
+                  disabled={!newEntry.overhead}
+                  required
+                >
+                  <option value="">Select Subhead</option>
+                  {newEntry.overhead && 
+                    overheadOptions[newEntry.overhead]?.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2">Description</label>
+                <input
+                  type="text"
+                  name="description"
+                  value={newEntry.description}
+                  onChange={handleModalInputChange}
+                  className="w-full p-2 border rounded-md"
+                  placeholder="Enter description"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2">Expected Cost (₹)</label>
+                <input
+                  type="number"
+                  name="expectedCost"
+                  value={newEntry.expectedCost}
+                  onChange={handleModalInputChange}
+                  className="w-full p-2 border rounded-md"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2">Actual Cost (₹)</label>
+                <input
+                  type="number"
+                  name="actualCost"
+                  value={newEntry.actualCost}
+                  onChange={handleModalInputChange}
+                  className="w-full p-2 border rounded-md"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setError(null);
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveNewEntry}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Add Entry
               </button>
             </div>
           </div>
@@ -735,7 +861,7 @@ const ProjectDetails = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          addRow();
+                          openAddModal();
                         }}
                         className="text-blue-500 hover:text-blue-700"
                         title="Add Subhead"
@@ -818,8 +944,8 @@ const ProjectDetails = () => {
                 </React.Fragment>
               ))}
 
-              {/* New Row Form (always visible at bottom) */}
-              {rows.some(row => !row.isExisting) && (
+              {/* New Row (when in editing mode) */}
+              {rows.some(row => !row.isExisting && row.isEditing) && (
                 <tr className="bg-yellow-50">
                   <td className="p-3 border">New</td>
                   <td className="p-3 border">
@@ -911,11 +1037,11 @@ const ProjectDetails = () => {
 
         <div className="flex justify-end mt-4">
           <button
-            onClick={addRow}
+            onClick={openAddModal}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            disabled={!!editingId || rows.some(row => !row.isExisting)}
+            disabled={!!editingId}
           >
-            Add New Cost Head
+            Add New Cost Entry
           </button>
         </div>
       </div>
