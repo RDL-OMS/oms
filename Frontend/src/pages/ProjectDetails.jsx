@@ -20,7 +20,8 @@ const ProjectDetails = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [actionIndex, setActionIndex] = useState(null);
-  const[teamDetails, setTeamDetails] = useState(null);
+  const [teamDetails, setTeamDetails] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   // Get token from localStorage
   const getToken = () => {
@@ -49,6 +50,14 @@ const ProjectDetails = () => {
     setShowConfirm(false);
   };
 
+  // Toggle expansion of cost head group
+  const toggleGroupExpansion = (overhead) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [overhead]: !prev[overhead]
+    }));
+  };
+
   useEffect(() => {
     const fetchProjectData = async () => {
       try {
@@ -67,18 +76,12 @@ const ProjectDetails = () => {
         // Set initial project data
         setProject(projectData);
         
-        console.log("project data1",projectData);
-        console.log("project data2",project);
-
         const projectId = projectData.projectId;
         const headers = {
           'Authorization': `Bearer ${token}`
         };
 
         const tl = projectData.teamLead?.['_id'] ?? null;
-        console.log("teamlead",tl);
-        
-
 
         // Fetch all required data in parallel
         const [overheadsResponse, costEntriesResponse, teamLeadResponse, membersResponse] = await Promise.all([
@@ -100,7 +103,6 @@ const ProjectDetails = () => {
             }) :
             Promise.resolve({ ok: false })
         ]);
-
 
         // Process overheads data
         if (!overheadsResponse.ok) {
@@ -177,25 +179,18 @@ const ProjectDetails = () => {
         }
 
         // Process team lead and members data
-
         if (teamLeadResponse.ok) {
           const teamLeadData = await teamLeadResponse.json();
-          // Make sure the data has the expected structure;
-          
           setTeamDetails(teamLeadData)
         }
 
         if (membersResponse.ok) {
           const membersData = await membersResponse.json();
-          teamDetails.members = membersData;
+          setTeamDetails(prev => ({
+            ...prev,
+            members: membersData
+          }));
         }
-
-
-        // Update project with team details
-        setProject(prev => ({
-          ...prev,
-          ...teamDetails
-        }));
 
       } catch (err) {
         console.error("Error loading project data:", err);
@@ -530,6 +525,36 @@ const ProjectDetails = () => {
     return <div className="p-6 max-w-5xl mx-auto pt-20">Project not found</div>;
   }
 
+  // Group rows by overhead for hierarchical display
+  const groupedRows = rows.reduce((acc, row) => {
+    if (!row.overhead || !row.isExisting) return acc;
+    
+    if (!acc[row.overhead]) {
+      acc[row.overhead] = {
+        overhead: row.overhead,
+        description: row.description,
+        expectedCost: 0,
+        actualCost: 0,
+        variance: 0,
+        subheads: [],
+        isExpanded: expandedGroups[row.overhead] || false
+      };
+    }
+    
+    acc[row.overhead].subheads.push(row);
+    acc[row.overhead].expectedCost += parseFloat(row.expectedCost) || 0;
+    acc[row.overhead].actualCost += parseFloat(row.actualCost) || 0;
+    
+    return acc;
+  }, {});
+
+  // Calculate variance for each group
+  Object.values(groupedRows).forEach(group => {
+    group.variance = group.expectedCost !== 0 
+      ? ((group.actualCost - group.expectedCost) / group.expectedCost) * 100 
+      : 0;
+  });
+
   return (
     <div className="p-6 max-w-5xl mx-auto pt-20">
       {/* Confirmation Dialog */}
@@ -581,11 +606,9 @@ const ProjectDetails = () => {
             <h3 className="font-medium text-gray-700 mb-2">Total Actual Cost</h3>
             <p className="text-2xl font-bold text-purple-600">{formatCurrency(totalActualCost)}</p>
           </div>
-          <div className={`border p-4 rounded-lg ${(project.budget - totalActualCost) >= 0 ? 'bg-green-50' : 'bg-red-50'
-            }`}>
+          <div className={`border p-4 rounded-lg ${(project.budget - totalActualCost) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
             <h3 className="font-medium text-gray-700 mb-2">Profit/Loss</h3>
-            <p className={`text-2xl font-bold ${(project.budget - totalActualCost) >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
+            <p className={`text-2xl font-bold ${(project.budget - totalActualCost) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {formatCurrency(project.budget - totalActualCost)}
             </p>
             <p className="text-sm mt-1">
@@ -626,7 +649,7 @@ const ProjectDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h3 className="font-medium text-gray-700">Team Lead</h3>
-            {teamDetails?.teamDetails?.data  ? (
+            {teamDetails?.data ? (
               <div className="flex items-center mt-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
                   {teamDetails.data.name?.charAt(0) || 'T'}
@@ -643,9 +666,9 @@ const ProjectDetails = () => {
 
           <div>
             <h3 className="font-medium text-gray-700">Team Members</h3>
-            {project.members && Array.isArray(project.members) && project.members.length > 0 ? (
+            {teamDetails?.members && Array.isArray(teamDetails.members) && teamDetails.members.length > 0 ? (
               <div className="mt-2 space-y-2">
-                {project.members.map((member, index) => (
+                {teamDetails.members.map((member, index) => (
                   <div key={index} className="flex items-center">
                     <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
                       {member.name?.charAt(0) || 'M'}
@@ -669,7 +692,7 @@ const ProjectDetails = () => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Cost Breakdown</h2>
           <div className="text-gray-600">
-            Showing {rows.length} cost entries
+            Showing {rows.filter(row => row.isExisting).length} cost entries
           </div>
         </div>
 
@@ -681,7 +704,6 @@ const ProjectDetails = () => {
               <tr className="bg-gray-200">
                 <th className="p-3 border text-left">Sl.no</th>
                 <th className="p-3 border text-left">Overhead</th>
-                <th className="p-3 border text-left">Subhead</th>
                 <th className="p-3 border text-left">Description</th>
                 <th className="p-3 border text-left">Expected Cost</th>
                 <th className="p-3 border text-left">Actual Cost</th>
@@ -690,158 +712,211 @@ const ProjectDetails = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => (
-                <tr key={row.id} className="hover:bg-gray-50 even:bg-gray-50">
-                  <td className="p-3 border">{index + 1}</td>
-                  <td className="p-3 border">
-                    {row.isEditing ? (
-                      <select
-                        value={row.overhead}
-                        onChange={(e) => handleInputChange(index, "overhead", e.target.value)}
-                        className="p-2 w-full border rounded-md"
-                        required
+              {Object.values(groupedRows).map((group, index) => (
+                <React.Fragment key={group.overhead}>
+                  {/* Main Cost Head Row */}
+                  <tr 
+                    className={`hover:bg-gray-50 cursor-pointer ${group.variance < 0 ? 'bg-red-50' : 'bg-green-50'}`}
+                    onClick={() => toggleGroupExpansion(group.overhead)}
+                  >
+                    <td className="p-3 border">{index + 1}</td>
+                    <td className="p-3 border font-medium">
+                      <div className="flex items-center">
+                        {expandedGroups[group.overhead] ? '▼' : '▶'} {group.overhead}
+                      </div>
+                    </td>
+                    <td className="p-3 border">{group.description}</td>
+                    <td className="p-3 border">{formatCurrency(group.expectedCost)}</td>
+                    <td className="p-3 border">{formatCurrency(group.actualCost)}</td>
+                    <td className={`p-3 border font-medium ${group.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {group.variance.toFixed(2)}%
+                    </td>
+                    <td className="p-3 border text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addRow();
+                        }}
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Add Subhead"
+                        disabled={!!editingId}
                       >
-                        <option value="">Select Overhead</option>
-                        {Object.keys(overheadOptions).map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="p-2">{row.overhead}</div>
-                    )}
+                        +
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Subhead Rows (visible when expanded) */}
+                  {expandedGroups[group.overhead] && group.subheads.map((subhead, subIndex) => (
+                    <tr 
+                      key={`${group.overhead}-${subIndex}`} 
+                      className="hover:bg-gray-50 bg-gray-100"
+                    >
+                      <td className="p-3 border pl-8">{index + 1}.{subIndex + 1}</td>
+                      <td className="p-3 border pl-8 italic">{subhead.subhead}</td>
+                      <td className="p-3 border">{subhead.description}</td>
+                      <td className="p-3 border">{formatCurrency(parseFloat(subhead.expectedCost))}</td>
+                      <td className="p-3 border">{formatCurrency(parseFloat(subhead.actualCost))}</td>
+                      <td className={`p-3 border ${subhead.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {parseFloat(subhead.variance).toFixed(2)}%
+                      </td>
+                      <td className="p-3 border text-center">
+                        {subhead.isEditing ? (
+                          <div className="flex space-x-2 justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                cancelEditing(rows.findIndex(r => r.id === subhead.id));
+                              }}
+                              className="text-gray-500 hover:text-gray-700"
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                saveCostEntries();
+                              }}
+                              className="text-green-500 hover:text-green-700"
+                              title="Save"
+                            >
+                              ✓
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex space-x-2 justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(rows.findIndex(r => r.id === subhead.id));
+                              }}
+                              className="text-blue-500 hover:text-blue-700"
+                              title="Edit"
+                              disabled={!!editingId}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                subhead.isExisting
+                                  ? deleteCostEntry(subhead.id, rows.findIndex(r => r.id === subhead.id))
+                                  : removeRow(rows.findIndex(r => r.id === subhead.id));
+                              }}
+                              className="text-red-500 hover:text-red-700"
+                              title="Delete"
+                              disabled={!!editingId}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+
+              {/* New Row Form (always visible at bottom) */}
+              {rows.some(row => !row.isExisting) && (
+                <tr className="bg-yellow-50">
+                  <td className="p-3 border">New</td>
+                  <td className="p-3 border">
+                    <select
+                      value={rows.find(row => !row.isExisting)?.overhead || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting), 
+                        "overhead", 
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      required
+                    >
+                      <option value="">Select Overhead</option>
+                      {Object.keys(overheadOptions).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="p-3 border">
-                    {row.isEditing ? (
-                      <select
-                        value={row.subhead}
-                        onChange={(e) => handleInputChange(index, "subhead", e.target.value)}
-                        className="p-2 w-full border rounded-md"
-                        disabled={!row.overhead}
-                        required
-                      >
-                        <option value="">Select Subhead</option>
-                        {row.overhead &&
-                          overheadOptions[row.overhead]?.map((sub, i) => (
-                            <option key={`${row.id}-sub-${i}`} value={sub}>
-                              {sub}
-                            </option>
-                          ))}
-                      </select>
-                    ) : (
-                      <div className="p-2">{row.subhead}</div>
-                    )}
+                    <input
+                      type="text"
+                      value={rows.find(row => !row.isExisting)?.description || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting), 
+                        "description", 
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="Enter description"
+                    />
                   </td>
                   <td className="p-3 border">
-                    {row.isEditing ? (
-                      <input
-                        type="text"
-                        value={row.description}
-                        onChange={(e) => handleInputChange(index, "description", e.target.value)}
-                        className="p-2 w-full border rounded-md"
-                        placeholder="Enter description"
-                      />
-                    ) : (
-                      <div className="p-2">{row.description}</div>
-                    )}
+                    <input
+                      type="number"
+                      value={rows.find(row => !row.isExisting)?.expectedCost || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting), 
+                        "expectedCost", 
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="0.00"
+                      required
+                    />
                   </td>
                   <td className="p-3 border">
-                    {row.isEditing ? (
-                      <input
-                        type="number"
-                        value={row.expectedCost}
-                        onChange={(e) => handleInputChange(index, "expectedCost", e.target.value)}
-                        className="p-2 w-full border rounded-md"
-                        placeholder="0.00"
-                        required
-                      />
-                    ) : (
-                      <div className="p-2">{formatCurrency(parseFloat(row.expectedCost))}</div>
-                    )}
+                    <input
+                      type="number"
+                      value={rows.find(row => !row.isExisting)?.actualCost || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting), 
+                        "actualCost", 
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="0.00"
+                      required
+                    />
                   </td>
                   <td className="p-3 border">
-                    {row.isEditing ? (
-                      <input
-                        type="number"
-                        value={row.actualCost}
-                        onChange={(e) => handleInputChange(index, "actualCost", e.target.value)}
-                        className="p-2 w-full border rounded-md"
-                        placeholder="0.00"
-                        required
-                      />
-                    ) : (
-                      <div className="p-2">{formatCurrency(parseFloat(row.actualCost))}</div>
-                    )}
-                  </td>
-                  <td className={`p-3 border ${row.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {row.variance !== "" ? `${parseFloat(row.variance).toFixed(2)}%` : "--"}
+                    {rows.find(row => !row.isExisting)?.variance || "--"}
                   </td>
                   <td className="p-3 border text-center">
-                    {row.isEditing ? (
-                      <div className="flex space-x-2 justify-center">
-                        <button
-                          onClick={() => cancelEditing(index)}
-                          className="text-gray-500 hover:text-gray-700"
-                          title="Cancel"
-                        >
-                          ✕
-                        </button>
-                        <button
-                          onClick={saveCostEntries}
-                          className="text-green-500 hover:text-green-700"
-                          title="Save"
-                        >
-                          ✓
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex space-x-2 justify-center">
-                        <button
-                          onClick={() => startEditing(index)}
-                          className="text-blue-500 hover:text-blue-700"
-                          title="Edit"
-                          disabled={!!editingId}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={() => row.isExisting ?
-                            deleteCostEntry(row.id, index) :
-                            removeRow(index)
-                          }
-                          className="text-red-500 hover:text-red-700"
-                          title="Delete"
-                          disabled={!!editingId}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex space-x-2 justify-center">
+                      <button
+                        onClick={() => removeRow(rows.findIndex(row => !row.isExisting))}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                      <button
+                        onClick={saveCostEntries}
+                        className="text-green-500 hover:text-green-700"
+                        title="Save"
+                      >
+                        ✓
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
 
-        <div className="flex justify-between mt-4">
+        <div className="flex justify-end mt-4">
           <button
             onClick={addRow}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            disabled={!!editingId}
+            disabled={!!editingId || rows.some(row => !row.isExisting)}
           >
-            Add Row
+            Add New Cost Head
           </button>
-          {editingId && (
-            <button
-              onClick={saveCostEntries}
-              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-          )}
         </div>
       </div>
     </div>

@@ -179,7 +179,7 @@ function App() {
 
 
           <Route path="/ProjectList" element={
-            <ProtectedRoute allowedRoles={['owner']}>
+            <ProtectedRoute allowedRoles={['owner','teamlead']}>
               <Navbar />
               <ProjectList />
             </ProtectedRoute>

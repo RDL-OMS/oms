@@ -115,7 +115,10 @@ const OwnerDashboard = () => {
 
             {/* Stats Section */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-md text-center">
+                <div 
+                    className="bg-white p-6 rounded-lg shadow-md text-center cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => navigate('/ProjectList')}
+                >
                     <h3 className="text-lg font-semibold text-gray-800">Total Projects</h3>
                     <p className="text-2xl font-bold text-blue-500 mt-2">{dashboardData.summary.totalProjects}</p>
                 </div>
