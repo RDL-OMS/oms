@@ -20,7 +20,6 @@ const TeamLeadDashboard = () => {
     }
   }, [navigate]);
 
-  // Chart options with Rupees format
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -50,7 +49,6 @@ const TeamLeadDashboard = () => {
     },
   };
 
-  // Team performance data
   const teamBarData = {
     labels: ["Project A", "Project B", "Project C"],
     datasets: [
@@ -67,7 +65,6 @@ const TeamLeadDashboard = () => {
     ],
   };
 
-  // Timeline progress data
   const timelineData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
     datasets: [
@@ -94,19 +91,27 @@ const TeamLeadDashboard = () => {
     <div className="pt-20 px-6 pb-6 bg-gray-100 min-h-screen">
       {/* Manage Members Button */}
       <div className="flex justify-end mb-4">
-        <button onClick={()=> navigate('/teamlead/members')} 
-        className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+        <button
+          onClick={() => navigate("/teamlead/members")}
+          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+        >
           Manage Members
         </button>
       </div>
 
       {/* Team-Focused Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
+        <div
+          onClick={() => navigate("/ProjectList")}
+          className="bg-white p-6 rounded-lg shadow-md text-center cursor-pointer hover:shadow-lg transition"
+        >
           <h3 className="text-lg font-semibold text-gray-800">My Projects</h3>
           <p className="text-2xl font-bold text-blue-500 mt-2">3</p>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
+        <div
+          onClick={() => navigate("/teamlead/members")}
+          className="bg-white p-6 rounded-lg shadow-md text-center cursor-pointer hover:shadow-lg transition"
+        >
           <h3 className="text-lg font-semibold text-gray-800">Team Members</h3>
           <p className="text-2xl font-bold text-purple-500 mt-2">5</p>
         </div>
