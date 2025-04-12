@@ -39,7 +39,7 @@ const TeamLeadDashboard = () => {
     },
     scales: {
       y: {
-        beginAtZero: true,
+        beginAtZero: false,
         ticks: {
           callback: function (value) {
             return `₹${value.toLocaleString()}`;
@@ -65,24 +65,20 @@ const TeamLeadDashboard = () => {
     ],
   };
 
-  const timelineData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  const profitLossData = {
+    labels: ["Project 1", "Project 2", "Project 3"],
     datasets: [
       {
-        label: "Planned Progress",
-        data: [10, 30, 50, 70, 80, 90],
-        borderColor: "#3498db",
-        backgroundColor: "rgba(52, 152, 219, 0.1)",
-        tension: 0.3,
+        label: "Profit/Loss",
+        data: [100000, -50000, 20000],
+        borderColor: "#1abc9c",
+        backgroundColor: "rgba(26, 188, 156, 0.2)",
+        tension: 0.5,
         fill: true,
-      },
-      {
-        label: "Actual Progress",
-        data: [8, 25, 45, 60, 75, 85],
-        borderColor: "#9b59b6",
-        backgroundColor: "rgba(155, 89, 182, 0.1)",
-        tension: 0.3,
-        fill: true,
+        pointBackgroundColor: "#1abc9c",
+        pointBorderColor: "#fff",
+        pointHoverBackgroundColor: "#fff",
+        pointHoverBorderColor: "#1abc9c",
       },
     ],
   };
@@ -133,10 +129,10 @@ const TeamLeadDashboard = () => {
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-            Timeline Progress
+            Profit / Loss Overview
           </h3>
           <div className="w-full h-[300px]">
-            <Line data={timelineData} options={chartOptions} />
+            <Line data={profitLossData} options={chartOptions} />
           </div>
         </div>
       </div>
