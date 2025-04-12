@@ -187,7 +187,7 @@ function App() {
 
 
           <Route path="/projectdetails" element={
-            <ProtectedRoute allowedRoles={['owner']}>
+            <ProtectedRoute allowedRoles={['owner','teamlead']}>
               <Navbar />
               <ProjectDetails />
             </ProtectedRoute>
@@ -204,7 +204,7 @@ function App() {
 
 
           <Route path="/costinghead" element={
-            <ProtectedRoute allowedRoles={['owner']}>
+            <ProtectedRoute allowedRoles={['owner','teamlead']}>
               <Navbar />
               <CostingHead />
             </ProtectedRoute>

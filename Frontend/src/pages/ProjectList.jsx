@@ -57,6 +57,7 @@ const ProjectList = () => {
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [URole, setrole] = useState(null)
 
   const getValidatedRole = () => {
     try {
@@ -64,6 +65,7 @@ const ProjectList = () => {
       if (!token) throw new Error("No authentication token found");
       const decoded = jwtDecode(token);
       if (Date.now() >= decoded.exp * 1000) throw new Error("Token expired");
+      setrole(decoded.role);
       return decoded.role;
     } catch (err) {
       localStorage.removeItem("token");
@@ -221,10 +223,17 @@ const ProjectList = () => {
 
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
+          {URole == 'owner' && (
           <button onClick={() => navigate("/admin/dashboard")} className="text-2xl font-bold text-green-600 hover:text-green-800">←</button>
+        )}
+         {URole == 'teamlead' && (
+          <button onClick={() => navigate("/teamlead/dashboard")} className="text-2xl font-bold text-green-600 hover:text-green-800">←</button>
+        )}
           <h2 className="text-2xl font-semibold text-gray-800">Project List</h2>
         </div>
+        {URole=='owner' && ( 
         <button onClick={() => setShowAddModal(true)} className="bg-green-500 text-white px-4 py-2 rounded">Add New Project</button>
+      )}
       </div>
 
       {successMessage && (
