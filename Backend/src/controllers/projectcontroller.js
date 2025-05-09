@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const CostEntry = require('../models/Costentry');
 const User = require('../models/user')
+const AuditLog = require('../models/AuditLog');
 
 // Get all projects (with role-based filtering)
 exports.getProjects = async (req, res) => {
@@ -408,19 +409,22 @@ exports.saveCostEntries = async (req, res) => {
   }
 };
 
-// Delete a cost entry
-exports.deleteCostEntry = async (req, res) => {
+
+exports.deleteCostEntry = async (req, res) => { //logged endpoint
   try {
     const { id } = req.params;
-    
-    // First get the entry to find the associated project
+    const { reason } = req.body; // Get reason from request body
+
+    if (!reason) {
+      return res.status(400).json({ message: 'Deletion reason is required' });
+    }
+
     const entry = await CostEntry.findById(id);
     if (!entry) {
       return res.status(404).json({ message: 'Cost entry not found' });
     }
 
-    // Check project access
-    const project = await Project.findOne({projectId:entry.projectId});
+    const project = await Project.findOne({ projectId: entry.projectId });
     if (!project) {
       return res.status(404).json({ message: 'Associated project not found' });
     }
@@ -435,10 +439,20 @@ exports.deleteCostEntry = async (req, res) => {
       });
     }
 
+    // Create audit log before deletion
+    await AuditLog.create({
+      action: 'DELETE',
+      entityType: 'CostEntry',
+      entityId: id,
+      performedBy: req.user.id,
+      reason: reason,
+      changes: entry.toObject() // Store the entire deleted entry
+    });
+
     // Delete the entry
     await CostEntry.findByIdAndDelete(id);
 
-    // Remove from project's costEntries array
+    // Update project
     await Project.findByIdAndUpdate(
       project._id,
       { $pull: { costEntries: id } }

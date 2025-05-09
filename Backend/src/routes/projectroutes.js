@@ -31,6 +31,7 @@ const express = require('express');
 const router = express.Router();
 const projectController = require('../controllers/projectcontroller');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const auditlog = require('../middleware/auditLog')
 
 // Apply auth middleware to all project routes
 router.use(authMiddleware);
@@ -39,13 +40,13 @@ router.use(authMiddleware);
 router.get('/getprojects/:role', projectController.getProjects); // Changed from '/getprojects'
 
 // Create a new project (only owner/teamlead)
-router.post('/', projectController.createProject); // Consider renaming to match REST conventions
+router.post('/', auditlog('CREATE','Project'),projectController.createProject); // Consider renaming to match REST conventions
 
 // Get single project
 router.get('/:id', projectController.getProjectById); // More RESTful URL
 
 // Update a project (owner/assigned teamlead)
-router.put('/:id', projectController.updateProject); // More RESTful URL
+router.put('/:id',auditlog('UPDATE','Project'), projectController.updateProject); // More RESTful URL
 
 // Delete a project (only owner)
 router.delete('/:id', projectController.deleteProject); // More RESTful URL
@@ -56,9 +57,9 @@ router.get('/cost-entries/:id', projectController.getCostentriesID); // Better R
 router.get('/getProjects/:id/:role',projectController.getProjectsUM)
 
 
-router.post('/createproject', projectController.createProject);
+router.post('/createproject', auditlog('CREATE','Project'),projectController.createProject);
 
-router.post('/:id/cost-entries',projectController.saveCostEntries);
+router.post('/:id/cost-entries',auditlog('CREATE','CostEntry'),projectController.saveCostEntries);
 
 router.delete('/cost-entries/:id',projectController.deleteCostEntry)
 
