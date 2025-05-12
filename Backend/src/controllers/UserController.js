@@ -193,13 +193,14 @@ exports.createUser = async (req, res) => {
     if (employeeId && employeeId.trim() !== '') {
       userData.employeeId = employeeId;
     }
-    console.log("userdaata",userData);
     
-
+    
     const newUser = await User.create(userData);
-
+    
     // Return response without sensitive data
     const userResponse = newUser.toObject();
+    console.log("userdaata",userResponse);
+    res.locals.entityId= userResponse._id;
     delete userResponse.password;
     delete userResponse.__v;
 

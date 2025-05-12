@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/UserController');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const auditLog = require("../middleware/auditLog")
 
 // Apply auth middleware to all user routes
 router.use(authMiddleware);
@@ -13,7 +14,7 @@ router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
 
 // Create new user (owners only)
-router.post('/add', userController.createUser);
+router.post('/add',auditLog("CREATE","User"), userController.createUser);
 
 // Update user role (owners only)
 router.put('/:id/role', userController.updateUserRole);

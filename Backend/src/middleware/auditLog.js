@@ -4,6 +4,8 @@ const User = require('../models/user'); // Import your User model
 
 const auditLog = (action, entityType) => async (req, res, next) => {
   try {
+    console.log("log middlewear");
+    
     let originalDoc = null;
     let user = null;
 
@@ -41,6 +43,7 @@ console.log('user',user);
             await AuditLog.create({
               ...baseLog,
               entityId: req.params.id,
+              reason: req.body.reason || 'No reason provided',
               changes: {
                 from: originalDoc?.toObject() || {},
                 to: req.body,
