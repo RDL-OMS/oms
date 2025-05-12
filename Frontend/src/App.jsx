@@ -152,6 +152,7 @@ import CostingHead from "./pages/Costinghead";
 import ProjectDetails from "./pages/ProjectDetails";
 import ManageProjectMembers from "./pages/teamlead/MemberManagement";
 import AddProject from "./pages/AddProject";
+import Report from './pages/Report'
 
 function App() {
   return (
@@ -177,9 +178,15 @@ function App() {
             </ProtectedRoute>
           } />
 
-
+          <Route path="/report" element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <Navbar />
+              <Report />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/ProjectList" element={
-            <ProtectedRoute allowedRoles={['owner','teamlead']}>
+            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
               <Navbar />
               <ProjectList />
             </ProtectedRoute>
@@ -187,7 +194,7 @@ function App() {
 
 
           <Route path="/projectdetails" element={
-            <ProtectedRoute allowedRoles={['owner','teamlead']}>
+            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
               <Navbar />
               <ProjectDetails />
             </ProtectedRoute>
@@ -204,7 +211,7 @@ function App() {
 
 
           <Route path="/costinghead" element={
-            <ProtectedRoute allowedRoles={['owner','teamlead']}>
+            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
               <Navbar />
               <CostingHead />
             </ProtectedRoute>
@@ -213,7 +220,7 @@ function App() {
 
           <Route path="/teamlead/dashboard" element={
             <ProtectedRoute allowedRoles={['teamlead']}>
-            <Navbar />
+              <Navbar />
               <TeamLeadDashboard />
             </ProtectedRoute>
           } />

@@ -20,6 +20,10 @@ const AuditLogSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  performedByUsername: {
+    type: String,
+    required: false // Optional since we'll populate it when available
+  },
   reason: {
     type: String,
     required: function() {
@@ -34,5 +38,12 @@ const AuditLogSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Add index for frequently queried fields
+AuditLogSchema.index({ action: 1 });
+AuditLogSchema.index({ entityType: 1 });
+AuditLogSchema.index({ entityId: 1 });
+AuditLogSchema.index({ performedBy: 1 });
+AuditLogSchema.index({ timestamp: -1 });
 
 module.exports = mongoose.model('AuditLog', AuditLogSchema);

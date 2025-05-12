@@ -25,7 +25,7 @@ const OwnerDashboard = () => {
                 }
 
                 const data = await dashboardService.getDashboardData(token);
-                console.log("heyeyeyy",data);
+                // console.log("heyeyeyy",data);
                 
                 setDashboardData(data);
                 setLoading(false);
@@ -110,6 +110,13 @@ const OwnerDashboard = () => {
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition duration-300"
                 >
                     Manage Users
+                </button>
+
+                <button
+                    onClick={() => navigate('/report')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition duration-300"
+                >
+                    report
                 </button>
             </div>
 

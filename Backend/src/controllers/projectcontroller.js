@@ -71,7 +71,8 @@ exports.getProjects = async (req, res) => {
         updatedAt: project.updatedAt,
         teamLead: project.teamLead,
         budget: project.budget,
-        members: project.members
+        members: project.members,
+        createdAt:project.createdAt
       }))
     };
 
@@ -87,9 +88,74 @@ exports.getProjects = async (req, res) => {
   }
 };
 
+// // Create a new project (only owner or teamlead)
+// exports.createProject = async (req, res) => {
+//   try {
+//     console.log("data frontend",req);
+    
+//     // Check if user has permission
+//     if (!['owner', 'teamlead'].includes(req.user.role)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Only owners and team leads can create projects'
+//       });
+//     }
+
+//     const { projectId, name, description, budget,teamLead } = req.body;
+
+//     // Validation
+//     if (!projectId || !name || !description) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Project ID, name, and description are required'
+//       });
+//     }
+
+//     // Check for duplicate projectId
+//     const exists = await Project.findOne({ projectId });
+//     if (exists) {
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Project ID already exists'
+//       });
+//     }
+
+//     // Create project with creator info
+//     const project = await Project.create({
+//       projectId,
+//       name,
+//       description,
+//       budget,
+//       createdBy: req.user.id,
+//       teamLead
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       data: {
+//         projectId: project.projectId,
+//         name: project.name,
+//         description: project.description,
+//         budget: project.budget,
+//         createdAt: project.createdAt
+//       }
+//     });
+
+//   } catch (err) {
+//     console.error('Error creating project:', err);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: err.message
+//     });
+//   }
+// };
+
 // Create a new project (only owner or teamlead)
 exports.createProject = async (req, res) => {
   try {
+    console.log("Request from frontend:", req.body);
+
     // Check if user has permission
     if (!['owner', 'teamlead'].includes(req.user.role)) {
       return res.status(403).json({
@@ -98,13 +164,13 @@ exports.createProject = async (req, res) => {
       });
     }
 
-    const { projectId, name, description, budget } = req.body;
+    const { projectId, name, description, budget, teamLead } = req.body;
 
-    // Validation
-    if (!projectId || !name || !description) {
+    // Basic validation
+    if (!projectId || !name || !description || !teamLead) {
       return res.status(400).json({
         success: false,
-        message: 'Project ID, name, and description are required'
+        message: 'Project ID, name, description, and team lead are required'
       });
     }
 
@@ -117,24 +183,38 @@ exports.createProject = async (req, res) => {
       });
     }
 
-    // Create project with creator info
+    // Validate teamLead exists
+    const user = await User.findById(teamLead);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assigned team lead does not exist'
+      });
+    }
+
+    // Create the project
     const project = await Project.create({
       projectId,
       name,
       description,
-      budget,
+      budget: Number(budget), // Ensure budget is stored as number
       createdBy: req.user.id,
-      teamLead: req.user.role === 'teamlead' ? req.user.id : null
+      teamLead
     });
+    res.locals.entityId = project._id;
+
+    // Optionally populate teamLead if you want to return details
+    const populatedProject = await Project.findById(project._id).populate('teamLead', 'name email role'); // customize fields as needed
 
     res.status(201).json({
       success: true,
       data: {
-        projectId: project.projectId,
-        name: project.name,
-        description: project.description,
-        budget: project.budget,
-        createdAt: project.createdAt
+        projectId: populatedProject.projectId,
+        name: populatedProject.name,
+        description: populatedProject.description,
+        budget: populatedProject.budget,
+        createdAt: populatedProject.createdAt,
+        teamLead: populatedProject.teamLead // returns object with name/email/role
       }
     });
 
@@ -147,6 +227,7 @@ exports.createProject = async (req, res) => {
     });
   }
 };
+
 
 // Update a project (owner or assigned teamlead)
 exports.updateProject = async (req, res) => {
@@ -196,10 +277,14 @@ exports.deleteProject = async (req, res) => {
     }
 
     const { id } = req.params;
-    const deletedProject = await Project.findByIdAndDelete(id);
+    const deletedProject = await Project.findById(id);
 
     if (!deletedProject) {
       return res.status(404).json({ message: 'Project not found' });
+    }
+    else{
+      res.locals.entityId = id;
+      await Project.findByIdAndDelete(id);
     }
 
     res.status(200).json({ message: 'Project deleted successfully' });
@@ -439,15 +524,16 @@ exports.deleteCostEntry = async (req, res) => { //logged endpoint
       });
     }
 
-    // Create audit log before deletion
-    await AuditLog.create({
-      action: 'DELETE',
-      entityType: 'CostEntry',
-      entityId: id,
-      performedBy: req.user.id,
-      reason: reason,
-      changes: entry.toObject() // Store the entire deleted entry
-    });
+    // // Create audit log before deletion
+    // await AuditLog.create({
+    //   action: 'DELETE',
+    //   entityType: 'CostEntry',
+    //   entityId: id,
+    //   performedBy: req.user.id,
+    //   reason: reason,
+    //   changes: entry.toObject() // Store the entire deleted entry
+    // });
+    res.locals.entityId = id;
 
     // Delete the entry
     await CostEntry.findByIdAndDelete(id);
@@ -534,7 +620,7 @@ exports.getOwnerDashboard = async (req, res) => {
           expectedCost: 0,
           actualCost: 0
         };
-        console.log("costs",project.projectId,project.budget,costs);
+        // console.log("costs",project.projectId,project.budget,costs);
         
         const projectProfitLoss = (project.budget || 0) - costs.actualCost;
         

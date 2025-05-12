@@ -1208,6 +1208,8 @@ const ProjectDetails = () => {
         }
 
         // Set initial project data
+        console.log("project data",projectData);
+        
         setProject(projectData);
         
         const projectId = projectData.projectId;
@@ -1576,6 +1578,8 @@ const ProjectDetails = () => {
   };
 
   const formatDate = (dateString) => {
+    console.log("date function",dateString);
+    
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
@@ -1833,7 +1837,7 @@ const ProjectDetails = () => {
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Project Information</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <h3 className="font-medium text-gray-700">Description</h3>
             <p className="text-gray-600">{project.description}</p>
@@ -1842,10 +1846,14 @@ const ProjectDetails = () => {
             <h3 className="font-medium text-gray-700">Created At</h3>
             <p className="text-gray-600">{formatDate(project.createdAt)}</p>
           </div>
+          <div>
+            <h3 className="font-medium text-gray-700">Updated At</h3>
+            <p className="text-gray-600">{formatDate(project.updatedAt)}</p>
+          </div>
         </div>
 
         {/* Team Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <h3 className="font-medium text-gray-700">Team Lead</h3>
             {teamDetails?.data ? (

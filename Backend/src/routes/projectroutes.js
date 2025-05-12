@@ -49,7 +49,7 @@ router.get('/:id', projectController.getProjectById); // More RESTful URL
 router.put('/:id',auditlog('UPDATE','Project'), projectController.updateProject); // More RESTful URL
 
 // Delete a project (only owner)
-router.delete('/:id', projectController.deleteProject); // More RESTful URL
+router.delete('/:id',auditlog('DELETE','Project'), projectController.deleteProject); // More RESTful URL
 
 // Get cost entries by id
 router.get('/cost-entries/:id', projectController.getCostentriesID); // Better REST structure
@@ -61,7 +61,7 @@ router.post('/createproject', auditlog('CREATE','Project'),projectController.cre
 
 router.post('/:id/cost-entries',auditlog('CREATE','CostEntry'),projectController.saveCostEntries);
 
-router.delete('/cost-entries/:id',projectController.deleteCostEntry)
+router.delete('/cost-entries/:id',auditlog('DELETE','CostEntry'),projectController.deleteCostEntry)
 
 //owner dashboard
 router.get('/owner/dashboard',projectController.getOwnerDashboard)

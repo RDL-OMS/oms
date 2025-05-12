@@ -16,6 +16,7 @@ const projectRoutes=require("./src/routes/projectroutes")
 const CostOverheadroutes=require("./src/routes/Costoverheadroutes")
 const adminRoutes=require('./src/routes/adminroutes')
 const userRoutes = require('./src/routes/Userroutes')
+const logroutes = require('./src/routes/logroutes')
 
 // MongoDB Connection
 const mongoURI = process.env.MONGO_URI || "mongodb+srv://RDLOMS:#RDLoms@cluster0.1mpd2.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
@@ -29,6 +30,7 @@ app.use("/api/projects",projectRoutes)
 app.use("/api/overheads",CostOverheadroutes)
 app.use('/api/admin',adminRoutes)
 app.use('/api/users',userRoutes)
+app.use('/api/logs',logroutes)
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
