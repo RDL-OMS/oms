@@ -61,6 +61,8 @@ router.post('/createproject', auditlog('CREATE','Project'),projectController.cre
 
 router.post('/:id/cost-entries',auditlog('CREATE','CostEntry'),projectController.saveCostEntries);
 
+router.put('/:id/cost-entries/update',auditlog('UPDATE','CostEntry'),projectController.updateCostEntries);
+
 router.delete('/cost-entries/:id',auditlog('DELETE','CostEntry'),projectController.deleteCostEntry)
 
 //owner dashboard

@@ -23,7 +23,10 @@ const ProjectDetails = () => {
   const [teamDetails, setTeamDetails] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [deleteReason, setDeleteReason] = useState("");
-  
+
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editReason, setEditReason] = useState("");
+  const [editIndex, setEditIndex] = useState(null);
   // Modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEntry, setNewEntry] = useState({
@@ -56,7 +59,7 @@ const ProjectDetails = () => {
       setError("Please provide a reason for deletion");
       return;
     }
-    
+
     if (confirmAction) {
       confirmAction(actionIndex, deleteReason);
     }
@@ -110,9 +113,9 @@ const ProjectDetails = () => {
   // Save new entry from modal
   const saveNewEntry = () => {
     // Validate inputs
-    if (!newEntry.overhead || !newEntry.subhead || 
-        isNaN(parseFloat(newEntry.expectedCost)) || 
-        isNaN(parseFloat(newEntry.actualCost))) {
+    if (!newEntry.overhead || !newEntry.subhead ||
+      isNaN(parseFloat(newEntry.expectedCost)) ||
+      isNaN(parseFloat(newEntry.actualCost))) {
       setError("Please fill all fields with valid values");
       return;
     }
@@ -154,10 +157,10 @@ const ProjectDetails = () => {
         }
 
         // Set initial project data
-        console.log("project data",projectData);
-        
+        console.log("project data", projectData);
+
         setProject(projectData);
-        
+
         const projectId = projectData.projectId;
         const headers = {
           'Authorization': `Bearer ${token}`
@@ -308,15 +311,19 @@ const ProjectDetails = () => {
   };
 
   const startEditing = (index) => {
-    if (editingId) {
+    // Allow editing if no row is being edited OR if clicking the same row that's already being edited
+    if (editingId === null || editingId === rows[index].id) {
+      const updatedRows = [...rows];
+      updatedRows[index].isEditing = true;
+      setRows(updatedRows);
+      setEditingId(updatedRows[index].id);
+      setEditIndex(index);
+      setEditReason("");
+      setShowEditConfirm(true);
+      setError(null);
+    } else {
       setError('Please finish editing the current row first');
-      return;
     }
-
-    const updatedRows = [...rows];
-    updatedRows[index].isEditing = true;
-    setRows(updatedRows);
-    setEditingId(updatedRows[index].id);
   };
 
   const cancelEditing = (index) => {
@@ -358,92 +365,100 @@ const ProjectDetails = () => {
         throw new Error("No token provided");
       }
 
-      const entriesToSave = rows
-        .filter(row => row.isEditing)
+      // Separate new entries from edited entries
+      const newEntries = rows
+        .filter(row => row.isEditing && !row.isExisting)
         .map(row => ({
-          id: row.isExisting ? row.id : undefined,
           overheadComponent: row.overhead,
           subhead: row.subhead,
           description: row.description,
           expectedCost: parseFloat(row.expectedCost) || 0,
           actualCost: parseFloat(row.actualCost) || 0,
-          variance: parseFloat(row.variance) || 0
         }));
 
-      const response = await fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          entries: entriesToSave
+      const updatedEntries = rows
+        .filter(row => row.isEditing && row.isExisting)
+        .map(row => ({
+          id: row.id,
+          overheadComponent: row.overhead,
+          subhead: row.subhead,
+          description: row.description,
+          expectedCost: parseFloat(row.expectedCost) || 0,
+          actualCost: parseFloat(row.actualCost) || 0,
+        }));
+
+      // Make separate API calls for new and updated entries
+      const responses = await Promise.all([
+        newEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            entries: newEntries
+          })
+        }),
+        updatedEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries/update`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            entries: updatedEntries,
+            reason:editReason
+          })
         })
-      });
+      ].filter(Boolean));
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to save cost entries');
+      // Check for errors in responses
+      for (const response of responses) {
+        console.log("response",response);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to save cost entries');
+        }
       }
 
-      const responseData = await response.json();
+      // Refresh the data after saving
+      const [costEntriesResponse] = await Promise.all([
+        fetch(`http://localhost:5000/api/projects/cost-entries/${project?.projectId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
 
-      let savedEntries = [];
-      if (Array.isArray(responseData)) {
-        savedEntries = responseData;
-      } else if (responseData.data) {
-        savedEntries = Array.isArray(responseData.data) ? responseData.data : [responseData.data];
-      } else {
-        savedEntries = [responseData];
+      if (!costEntriesResponse.ok) {
+        throw new Error('Failed to fetch updated cost entries');
       }
 
-      const updatedRows = rows.map(row => {
-        if (!row.isEditing) return row;
+      const entriesData = await costEntriesResponse.json();
+      let totalExpected = 0;
+      let totalActual = 0;
 
-        let savedEntry;
-        if (row.isExisting) {
-          savedEntry = savedEntries.find(entry => entry._id === row.id);
-        }
+      const formattedRows = Array.isArray(entriesData) && entriesData.length > 0
+        ? entriesData.map((entry, index) => {
+          const expected = parseFloat(entry.expectedCost) || 0;
+          const actual = parseFloat(entry.actualCost) || 0;
+          totalExpected += expected;
+          totalActual += actual;
 
-        if (!savedEntry) {
-          savedEntry = savedEntries.find(entry =>
-            entry.overheadComponent === row.overhead &&
-            entry.subhead === row.subhead
-          );
-        }
-
-        if (!savedEntry) {
-          console.warn('No matching saved entry found for:', row);
           return {
-            ...row,
-            isEditing: false,
-            isExisting: true
+            id: entry._id || `${project?.projectId}-${index}`,
+            overhead: entry.overhead || "",
+            subhead: entry.subhead || "",
+            description: entry.description || "",
+            expectedCost: expected.toString(),
+            actualCost: actual.toString(),
+            variance: entry.variance || "0",
+            isExisting: true,
+            isEditing: false
           };
-        }
+        })
+        : [];
 
-        return {
-          ...row,
-          id: savedEntry._id || row.id,
-          isEditing: false,
-          isExisting: true,
-          expectedCost: savedEntry.expectedCost?.toString() || row.expectedCost,
-          actualCost: savedEntry.actualCost?.toString() || row.actualCost,
-          variance: savedEntry.variance?.toString() || row.variance
-        };
-      });
-
-      const { totalExpected, totalActual } = updatedRows.reduce(
-        (acc, row) => {
-          if (row.isExisting) {
-            acc.totalExpected += parseFloat(row.expectedCost) || 0;
-            acc.totalActual += parseFloat(row.actualCost) || 0;
-          }
-          return acc;
-        },
-        { totalExpected: 0, totalActual: 0 }
-      );
-
-      setRows(updatedRows);
+      setRows(formattedRows);
       setTotalExpectedCost(totalExpected);
       setTotalActualCost(totalActual);
       setEditingId(null);
@@ -524,8 +539,8 @@ const ProjectDetails = () => {
   };
 
   const formatDate = (dateString) => {
-    console.log("date function",dateString);
-    
+    console.log("date function", dateString);
+
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
@@ -555,7 +570,7 @@ const ProjectDetails = () => {
   // Group rows by overhead for hierarchical display
   const groupedRows = rows.reduce((acc, row) => {
     if (!row.overhead || !row.isExisting) return acc;
-    
+
     if (!acc[row.overhead]) {
       acc[row.overhead] = {
         overhead: row.overhead,
@@ -567,18 +582,18 @@ const ProjectDetails = () => {
         isExpanded: expandedGroups[row.overhead] || false
       };
     }
-    
+
     acc[row.overhead].subheads.push(row);
     acc[row.overhead].expectedCost += parseFloat(row.expectedCost) || 0;
     acc[row.overhead].actualCost += parseFloat(row.actualCost) || 0;
-    
+
     return acc;
   }, {});
 
   // Calculate variance for each group
   Object.values(groupedRows).forEach(group => {
-    group.variance = group.expectedCost !== 0 
-      ? ((group.actualCost - group.expectedCost) / group.expectedCost) * 100 
+    group.variance = group.expectedCost !== 0
+      ? ((group.actualCost - group.expectedCost) / group.expectedCost) * 100
       : 0;
   });
 
@@ -589,7 +604,7 @@ const ProjectDetails = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h3 className="text-lg font-medium mb-4">{confirmMessage}</h3>
-            
+
             <div className="mb-4">
               <label className="block text-gray-700 mb-2">Reason for deletion:</label>
               <textarea
@@ -602,7 +617,7 @@ const ProjectDetails = () => {
               />
               {error && <div className="text-red-500 text-sm mt-1">{error}</div>}
             </div>
-            
+
             <div className="flex justify-end space-x-4">
               <button
                 onClick={cancelAction}
@@ -621,12 +636,61 @@ const ProjectDetails = () => {
         </div>
       )}
 
+      {showEditConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-medium mb-4">Confirm Edit</h3>
+            <p className="mb-4">Please provide a reason for editing this cost entry:</p>
+
+            <div className="mb-4">
+              <textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                className="w-full p-2 border rounded-md"
+                placeholder="Enter reason for editing..."
+                rows="3"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowEditConfirm(false);
+                  setEditReason("");
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!editReason.trim()) {
+                    setError("Please provide a reason for editing");
+                    return;
+                  }
+                  const updatedRows = [...rows];
+                  updatedRows[editIndex].isEditing = true;
+                  setRows(updatedRows);
+                  setEditingId(updatedRows[editIndex].id);
+                  setShowEditConfirm(false);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Confirm Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Add Cost Entry Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
             <h3 className="text-xl font-semibold mb-4">Add New Cost Entry</h3>
-            
+
             {error && <div className="text-red-500 mb-4">{error}</div>}
 
             <div className="space-y-4">
@@ -657,7 +721,7 @@ const ProjectDetails = () => {
                   required
                 >
                   <option value="">Select Subhead</option>
-                  {newEntry.overhead && 
+                  {newEntry.overhead &&
                     overheadOptions[newEntry.overhead]?.map(sub => (
                       <option key={sub} value={sub}>{sub}</option>
                     ))
@@ -865,203 +929,244 @@ const ProjectDetails = () => {
               </tr>
             </thead>
             <tbody>
-  {Object.values(groupedRows).map((group, index) => (
-    <React.Fragment key={group.overhead}>
-      {/* Main Cost Head Row */}
-      <tr 
-        className={`hover:bg-gray-50 cursor-pointer ${group.variance < 0 ? 'bg-red-50' : 'bg-green-50'}`}
-        onClick={() => toggleGroupExpansion(group.overhead)}
-      >
-        <td className="p-3 border">{index + 1}</td>
-        <td className="p-3 border font-medium">
-          <div className="flex items-center">
-            {expandedGroups[group.overhead] ? '▼' : '▶'} {group.overhead}
-          </div>
-        </td>
-        <td className="p-3 border">{group.description}</td>
-        <td className="p-3 border">{formatCurrency(group.expectedCost)}</td>
-        <td className="p-3 border">{formatCurrency(group.actualCost)}</td>
-        <td className={`p-3 border font-medium ${group.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
-          {group.variance.toFixed(2)}%
-        </td>
-        <td className="p-3 border text-center">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openAddModal();
-            }}
-            className="text-blue-500 hover:text-blue-700"
-            title="Add Subhead"
-            disabled={!!editingId}
-          >
-            +
-          </button>
-        </td>
-      </tr>
+              {Object.values(groupedRows).map((group, index) => (
+                <React.Fragment key={group.overhead}>
+                  {/* Main Cost Head Row */}
+                  <tr
+                    className={`hover:bg-gray-50 cursor-pointer ${group.variance < 0 ? 'bg-red-50' : 'bg-green-50'}`}
+                    onClick={() => toggleGroupExpansion(group.overhead)}
+                  >
+                    <td className="p-3 border">{index + 1}</td>
+                    <td className="p-3 border font-medium">
+                      <div className="flex items-center">
+                        {expandedGroups[group.overhead] ? '▼' : '▶'} {group.overhead}
+                      </div>
+                    </td>
+                    <td className="p-3 border">{group.description}</td>
+                    <td className="p-3 border">{formatCurrency(group.expectedCost)}</td>
+                    <td className="p-3 border">{formatCurrency(group.actualCost)}</td>
+                    <td className={`p-3 border font-medium ${group.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {group.variance.toFixed(2)}%
+                    </td>
+                    <td className="p-3 border text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAddModal();
+                        }}
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Add Subhead"
+                        disabled={!!editingId}
+                      >
+                        +
+                      </button>
+                    </td>
+                  </tr>
 
-      {/* Subhead Rows (visible when expanded) */}
-      {expandedGroups[group.overhead] && group.subheads.map((subhead, subIndex) => (
-        <tr 
-          key={`${group.overhead}-${subIndex}`} 
-          className="hover:bg-gray-50 bg-gray-100"
-        >
-          <td className="p-3 border pl-8">{index + 1}.{subIndex + 1}</td>
-          <td className="p-3 border pl-8 italic">{subhead.subhead}</td>
-          <td className="p-3 border">{subhead.description}</td>
-          <td className="p-3 border">{formatCurrency(parseFloat(subhead.expectedCost))}</td>
-          <td className="p-3 border">{formatCurrency(parseFloat(subhead.actualCost))}</td>
-          <td className={`p-3 border ${subhead.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {parseFloat(subhead.variance).toFixed(2)}%
-          </td>
-          <td className="p-3 border text-center">
-            {subhead.isEditing ? (
-              <div className="flex space-x-2 justify-center">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    cancelEditing(rows.findIndex(r => r.id === subhead.id));
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                  title="Cancel"
-                >
-                  ✕
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    saveCostEntries();
-                  }}
-                  className="text-green-500 hover:text-green-700"
-                  title="Save"
-                >
-                  ✓
-                </button>
-              </div>
-            ) : (
-              <div className="flex space-x-2 justify-center">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEditing(rows.findIndex(r => r.id === subhead.id));
-                  }}
-                  className="text-blue-500 hover:text-blue-700"
-                  title="Edit"
-                  disabled={!!editingId}
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    subhead.isExisting
-                      ? handleConfirm(
-                          "Are you sure you want to delete this cost entry?",
-                          (idx, reason) => deleteCostEntry(subhead.id, idx, reason),
-                          rows.findIndex(r => r.id === subhead.id))
-                      : removeRow(rows.findIndex(r => r.id === subhead.id));
-            }}
-                  className="text-red-500 hover:text-red-700"
-                  title="Delete"
-                  disabled={!!editingId}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </td>
-        </tr>
-      ))}
-    </React.Fragment>
-  ))}
+                  {/* Subhead Rows (visible when expanded) */}
+                  {expandedGroups[group.overhead] && group.subheads.map((subhead, subIndex) => {
+                    const rowIndex = rows.findIndex(r => r.id === subhead.id);
+                    return (
+                      <tr key={`${group.overhead}-${subIndex}`} className="hover:bg-gray-50 bg-gray-100">
+                        <td className="p-3 border pl-8">{index + 1}.{subIndex + 1}</td>
 
-  {/* New Row (when in editing mode) */}
-  {rows.some(row => !row.isExisting && row.isEditing) && (
-    <tr className="bg-yellow-50">
-      <td className="p-3 border">New</td>
-      <td className="p-3 border">
-        <select
-          value={rows.find(row => !row.isExisting)?.overhead || ""}
-          onChange={(e) => handleInputChange(
-            rows.findIndex(row => !row.isExisting), 
-            "overhead", 
-            e.target.value
-          )}
-          className="p-2 w-full border rounded-md"
-          required
-        >
-          <option value="">Select Overhead</option>
-          {Object.keys(overheadOptions).map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="p-3 border">
-        <input
-          type="text"
-          value={rows.find(row => !row.isExisting)?.description || ""}
-          onChange={(e) => handleInputChange(
-            rows.findIndex(row => !row.isExisting), 
-            "description", 
-            e.target.value
-          )}
-          className="p-2 w-full border rounded-md"
-          placeholder="Enter description"
-        />
-      </td>
-      <td className="p-3 border">
-        <input
-          type="number"
-          value={rows.find(row => !row.isExisting)?.expectedCost || ""}
-          onChange={(e) => handleInputChange(
-            rows.findIndex(row => !row.isExisting), 
-            "expectedCost", 
-            e.target.value
-          )}
-          className="p-2 w-full border rounded-md"
-          placeholder="0.00"
-          required
-        />
-      </td>
-      <td className="p-3 border">
-        <input
-          type="number"
-          value={rows.find(row => !row.isExisting)?.actualCost || ""}
-          onChange={(e) => handleInputChange(
-            rows.findIndex(row => !row.isExisting), 
-            "actualCost", 
-            e.target.value
-          )}
-          className="p-2 w-full border rounded-md"
-          placeholder="0.00"
-          required
-        />
-      </td>
-      <td className="p-3 border">
-        {rows.find(row => !row.isExisting)?.variance || "--"}
-      </td>
-      <td className="p-3 border text-center">
-        <div className="flex space-x-2 justify-center">
-          <button
-            onClick={() => removeRow(rows.findIndex(row => !row.isExisting))}
-            className="text-gray-500 hover:text-gray-700"
-            title="Cancel"
-          >
-            ✕
-          </button>
-          <button
-            onClick={saveCostEntries}
-            className="text-green-500 hover:text-green-700"
-            title="Save"
-          >
-            ✓
-          </button>
-        </div>
-      </td>
-    </tr>
-  )}
-</tbody>
+                        {/* Overhead (non-editable, shown as italic subhead) */}
+                        <td className="p-3 border pl-8 italic">{subhead.subhead}</td>
+
+                        {/* Description */}
+                        <td className="p-3 border">
+                          {subhead.isEditing ? (
+                            <input
+                              type="text"
+                              value={subhead.description}
+                              onChange={(e) => handleInputChange(rowIndex, "description", e.target.value)}
+                              className="p-2 w-full border rounded-md"
+                            />
+                          ) : subhead.description}
+                        </td>
+
+                        {/* Expected Cost */}
+                        <td className="p-3 border">
+                          {subhead.isEditing ? (
+                            <input
+                              type="number"
+                              value={subhead.expectedCost}
+                              onChange={(e) => handleInputChange(rowIndex, "expectedCost", e.target.value)}
+                              className="p-2 w-full border rounded-md"
+                            />
+                          ) : formatCurrency(parseFloat(subhead.expectedCost))}
+                        </td>
+
+                        {/* Actual Cost */}
+                        <td className="p-3 border">
+                          {subhead.isEditing ? (
+                            <input
+                              type="number"
+                              value={subhead.actualCost}
+                              onChange={(e) => handleInputChange(rowIndex, "actualCost", e.target.value)}
+                              className="p-2 w-full border rounded-md"
+                            />
+                          ) : formatCurrency(parseFloat(subhead.actualCost))}
+                        </td>
+
+                        {/* Variance */}
+                        <td className={`p-3 border ${subhead.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {parseFloat(subhead.variance).toFixed(2)}%
+                        </td>
+
+                        {/* Actions */}
+                        <td className="p-3 border text-center">
+                          {subhead.isEditing ? (
+                            <div className="flex space-x-2 justify-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  cancelEditing(rowIndex);
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                                title="Cancel"
+                              >
+                                ✕
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  saveCostEntries();
+                                }}
+                                className="text-green-500 hover:text-green-700"
+                                title="Save"
+                              >
+                                ✓
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex space-x-2 justify-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(rowIndex);
+                                }}
+                                className="text-blue-500 hover:text-blue-700"
+                                title="Edit"
+                                disabled={!!editingId && editingId !== subhead.id}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  subhead.isExisting
+                                    ? handleConfirm(
+                                      "Are you sure you want to delete this cost entry?",
+                                      (idx, reason) => deleteCostEntry(subhead.id, idx, reason),
+                                      rowIndex
+                                    )
+                                    : removeRow(rowIndex);
+                                }}
+                                className="text-red-500 hover:text-red-700"
+                                title="Delete"
+                                disabled={!!editingId}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                </React.Fragment>
+              ))}
+
+              {/* New Row (when in editing mode) */}
+              {rows.some(row => !row.isExisting && row.isEditing) && (
+                <tr className="bg-yellow-50">
+                  <td className="p-3 border">New</td>
+                  <td className="p-3 border">
+                    <select
+                      value={rows.find(row => !row.isExisting)?.overhead || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting),
+                        "overhead",
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      required
+                    >
+                      <option value="">Select Overhead</option>
+                      {Object.keys(overheadOptions).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-3 border">
+                    <input
+                      type="text"
+                      value={rows.find(row => !row.isExisting)?.description || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting),
+                        "description",
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="Enter description"
+                    />
+                  </td>
+                  <td className="p-3 border">
+                    <input
+                      type="number"
+                      value={rows.find(row => !row.isExisting)?.expectedCost || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting),
+                        "expectedCost",
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="0.00"
+                      required
+                    />
+                  </td>
+                  <td className="p-3 border">
+                    <input
+                      type="number"
+                      value={rows.find(row => !row.isExisting)?.actualCost || ""}
+                      onChange={(e) => handleInputChange(
+                        rows.findIndex(row => !row.isExisting),
+                        "actualCost",
+                        e.target.value
+                      )}
+                      className="p-2 w-full border rounded-md"
+                      placeholder="0.00"
+                      required
+                    />
+                  </td>
+                  <td className="p-3 border">
+                    {rows.find(row => !row.isExisting)?.variance || "--"}
+                  </td>
+                  <td className="p-3 border text-center">
+                    <div className="flex space-x-2 justify-center">
+                      <button
+                        onClick={() => removeRow(rows.findIndex(row => !row.isExisting))}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                      <button
+                        onClick={saveCostEntries}
+                        className="text-green-500 hover:text-green-700"
+                        title="Save"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
           </table>
         </div>
 

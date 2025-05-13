@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 const getToken = () => {
     return localStorage.getItem("token");
 };
@@ -13,10 +14,18 @@ const AuditLogReport = () => {
         endDate: '',
         search: ''
     });
+    const [expandedReasons, setExpandedReasons] = useState({});
 
     useEffect(() => {
         fetchLogs();
     }, [filters]);
+
+    const toggleExpandReason = (logId) => {
+        setExpandedReasons(prev => ({
+            ...prev,
+            [logId]: !prev[logId]
+        }));
+    };
 
     const fetchLogs = async () => {
         try {
@@ -26,7 +35,6 @@ const AuditLogReport = () => {
             }
             setLoading(true);
 
-            // Create request body
             const requestBody = {
                 action: filters.action || undefined,
                 entityType: filters.entityType || undefined,
@@ -35,13 +43,12 @@ const AuditLogReport = () => {
                 search: filters.search || undefined
             };
 
-            // Remove undefined values
             Object.keys(requestBody).forEach(key =>
                 requestBody[key] === undefined && delete requestBody[key]
             );
 
             const response = await fetch('http://localhost:5000/api/logs/', {
-                method: 'POST', // or 'GET' if you prefer
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -49,15 +56,11 @@ const AuditLogReport = () => {
                 body: JSON.stringify(requestBody)
             });
 
-
-
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('data', data);
-
             setLogs(data);
             setLoading(false);
         } catch (err) {
@@ -83,7 +86,6 @@ const AuditLogReport = () => {
     };
 
     const exportToCSV = () => {
-        // CSV export implementation
         const headers = ['Timestamp', 'Action', 'Entity', 'User', 'Reason'];
         const csvContent = [
             headers.join(','),
@@ -92,7 +94,7 @@ const AuditLogReport = () => {
                 log.action,
                 `${log.entityType} #${log.entityId.toString().substring(0, 6)}...`,
                 `User #${log.performedBy.toString().substring(0, 6)}...`,
-                `"${log.reason || 'N/A'}"` // Wrap in quotes to handle commas
+                `"${log.reason || 'N/A'}"`
             ].join(','))
         ].join('\n');
 
@@ -111,9 +113,7 @@ const AuditLogReport = () => {
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-2xl font-bold text-teal-700 mb-6">Audit Logs</h1>
 
-            {/* Filters section remains identical */}
             <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-                {/* ... (same filter JSX as before) ... */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
@@ -180,9 +180,7 @@ const AuditLogReport = () => {
                 </div>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                {/* ... (same stats cards JSX as before) ... */}
                 <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
                     <p className="text-sm text-gray-500">Total Logs</p>
                     <p className="text-2xl font-bold">{logs.length}</p>
@@ -205,10 +203,8 @@ const AuditLogReport = () => {
                         {logs.filter(log => log.action === 'DELETE').length}
                     </p>
                 </div>
-
             </div>
 
-            {/* Logs Table */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
@@ -260,8 +256,18 @@ const AuditLogReport = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {log.performedBy.toString().substring(0, 6)}...
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 truncate max-w-xs">
-                                            {log.reason || 'N/A'}
+                                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                                            <div className={`${expandedReasons[log._id] ? '' : 'line-clamp-2'} break-words`}>
+                                                {log.reason || 'N/A'}
+                                            </div>
+                                            {log.reason && log.reason.length > 100 && (
+                                                <button 
+                                                    onClick={() => toggleExpandReason(log._id)}
+                                                    className="text-teal-600 text-xs mt-1 hover:underline"
+                                                >
+                                                    {expandedReasons[log._id] ? 'Show less' : 'Read more'}
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

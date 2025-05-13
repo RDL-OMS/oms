@@ -494,6 +494,122 @@ exports.saveCostEntries = async (req, res) => {
   }
 };
 
+exports.updateCostEntries = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const projectId = id;
+    const { entries } = req.body;
+
+    // Validate project exists
+    const project = await Project.findOne({ projectId });
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Validate request body
+    if (!Array.isArray(entries)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Entries must be an array'
+      });
+    }
+
+    // Process updates
+    const updateResults = [];
+    const bulkOps = [];
+    
+    for (const entry of entries) {
+      // Validate required fields
+      if (!entry.id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each entry must have an id for updates'
+        });
+      }
+
+      if (!entry.overheadComponent || !entry.subhead) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each entry must have overheadComponent and subhead'
+        });
+      }
+
+      if (isNaN(entry.expectedCost)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Expected cost must be a number'
+        });
+      }
+
+      if (isNaN(entry.actualCost)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Actual cost must be a number'
+        });
+      }
+
+      // Calculate variance
+      const expected = parseFloat(entry.expectedCost);
+      const actual = parseFloat(entry.actualCost);
+      const variance = expected !== 0 ? ((actual - expected) / expected) * 100 : 0;
+
+      // Prepare bulk operation
+      bulkOps.push({
+        updateOne: {
+          filter: { 
+            _id: entry.id,
+            project: project._id // Ensure entry belongs to this project
+          },
+          update: {
+            $set: {
+              overheadComponent: entry.overheadComponent,
+              subhead: entry.subhead,
+              description: entry.description || '',
+              expectedCost: expected,
+              actualCost: actual,
+              variance: variance,
+              updatedAt: new Date()
+            }
+          }
+        }
+      });
+    }
+
+    // Execute bulk operations
+    if (bulkOps.length > 0) {
+      const result = await CostEntry.bulkWrite(bulkOps);
+      updateResults.push(result);
+    }
+
+    // Get updated entries
+    const updatedEntries = await CostEntry.find({
+      _id: { $in: entries.map(e => e.id) },
+      project: project._id
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cost entries updated successfully',
+      data: {
+        matchedCount: updateResults.reduce((sum, r) => sum + (r?.matchedCount || 0), 0),
+        modifiedCount: updateResults.reduce((sum, r) => sum + (r?.modifiedCount || 0), 0),
+        entries: updatedEntries
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating cost entries:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating cost entries',
+      error: error.message
+    });
+  }
+};
+
 
 exports.deleteCostEntry = async (req, res) => { //logged endpoint
   try {
