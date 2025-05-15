@@ -349,6 +349,136 @@ const ProjectDetails = () => {
     return null;
   };
 
+  // const saveCostEntries = async () => {
+  //   const validationError = validateRows();
+  //   if (validationError) {
+  //     setError(validationError);
+  //     return;
+  //   }
+
+  //   try {
+  //     setIsSaving(true);
+  //     setError(null);
+
+  //     const token = getToken();
+  //     if (!token) {
+  //       throw new Error("No token provided");
+  //     }
+
+  //     // Separate new entries from edited entries
+  //     const newEntries = rows
+  //       .filter(row => row.isEditing && !row.isExisting)
+  //       .map(row => ({
+  //         overheadComponent: row.overhead,
+  //         subhead: row.subhead,
+  //         description: row.description,
+  //         expectedCost: parseFloat(row.expectedCost) || 0,
+  //         actualCost: parseFloat(row.actualCost) || 0,
+  //       }));
+
+  //     const updatedEntries = rows
+  //       .filter(row => row.isEditing && row.isExisting)
+  //       .map(row => ({
+  //         id: row.id,
+  //         overheadComponent: row.overhead,
+  //         subhead: row.subhead,
+  //         description: row.description,
+  //         expectedCost: parseFloat(row.expectedCost) || 0,
+  //         actualCost: parseFloat(row.actualCost) || 0,
+  //       }));
+  //       rows.forEach(row => {
+  //         console.log("rowwww",row);
+
+  //       });
+
+  //     // Make separate API calls for new and updated entries
+  //     const responses = await Promise.all([
+  //       newEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries`, {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //           'Authorization': `Bearer ${token}`
+  //         },
+  //         body: JSON.stringify({
+  //           entries: newEntries
+  //         })
+  //       }),
+  //       updatedEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries/${row.id}/update`, {
+  //         method: 'PUT',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //           'Authorization': `Bearer ${token}`
+  //         },
+  //         body: JSON.stringify({
+  //           entries: updatedEntries,
+  //           reason:editReason
+  //         })
+  //       })
+  //     ].filter(Boolean));
+
+  //     // Check for errors in responses
+  //     for (const response of responses) {
+  //       console.log("response",response);
+
+  //       if (!response.ok) {
+  //         const errorData = await response.json().catch(() => ({}));
+  //         throw new Error(errorData.message || 'Failed to save cost entries');
+  //       }
+  //     }
+
+  //     // Refresh the data after saving
+  //     const [costEntriesResponse] = await Promise.all([
+  //       fetch(`http://localhost:5000/api/projects/cost-entries/${project?.projectId}`, {
+  //         headers: { 'Authorization': `Bearer ${token}` }
+  //       })
+  //     ]);
+
+  //     if (!costEntriesResponse.ok) {
+  //       throw new Error('Failed to fetch updated cost entries');
+  //     }
+
+  //     const entriesData = await costEntriesResponse.json();
+  //     let totalExpected = 0;
+  //     let totalActual = 0;
+
+  //     const formattedRows = Array.isArray(entriesData) && entriesData.length > 0
+  //       ? entriesData.map((entry, index) => {
+  //         const expected = parseFloat(entry.expectedCost) || 0;
+  //         const actual = parseFloat(entry.actualCost) || 0;
+  //         totalExpected += expected;
+  //         totalActual += actual;
+
+  //         return {
+  //           id: entry._id || `${project?.projectId}-${index}`,
+  //           overhead: entry.overhead || "",
+  //           subhead: entry.subhead || "",
+  //           description: entry.description || "",
+  //           expectedCost: expected.toString(),
+  //           actualCost: actual.toString(),
+  //           variance: entry.variance || "0",
+  //           isExisting: true,
+  //           isEditing: false
+  //         };
+  //       })
+  //       : [];
+
+  //     setRows(formattedRows);
+  //     setTotalExpectedCost(totalExpected);
+  //     setTotalActualCost(totalActual);
+  //     setEditingId(null);
+
+  //   } catch (err) {
+  //     console.error('Error saving cost entries:', err);
+  //     setError(err.message || 'Failed to save cost entries');
+  //     if (err.message === "No token provided") {
+  //       navigate('/login', { state: { from: location, error: "Session expired. Please login again." } });
+  //     }
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+
+
   const saveCostEntries = async () => {
     const validationError = validateRows();
     if (validationError) {
@@ -365,7 +495,7 @@ const ProjectDetails = () => {
         throw new Error("No token provided");
       }
 
-      // Separate new entries from edited entries
+      // Process new entries (unchanged)
       const newEntries = rows
         .filter(row => row.isEditing && !row.isExisting)
         .map(row => ({
@@ -386,8 +516,39 @@ const ProjectDetails = () => {
           expectedCost: parseFloat(row.expectedCost) || 0,
           actualCost: parseFloat(row.actualCost) || 0,
         }));
+      rows.forEach(row => {
+        console.log("rowwww", row);
 
-      // Make separate API calls for new and updated entries
+      });
+
+      // Process updates - now we'll make individual API calls for each updated entry
+      const updatePromises = rows
+        .filter(row => row.isEditing && row.isExisting)
+        .map(async (row) => {
+          const response = await fetch(
+            `http://localhost:5000/api/projects/${project?.projectId}/cost-entries/${row.id}/update`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                entries: updatedEntries,
+                reason: editReason
+              })
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Failed to update cost entry ${row.id}`);
+          }
+
+          return response.json();
+        });
+
+      // Make API calls for new entries and updated entries
       const responses = await Promise.all([
         newEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries`, {
           method: 'POST',
@@ -399,27 +560,13 @@ const ProjectDetails = () => {
             entries: newEntries
           })
         }),
-        updatedEntries.length > 0 && fetch(`http://localhost:5000/api/projects/${project?.projectId}/cost-entries/update`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            entries: updatedEntries,
-            reason:editReason
-          })
-        })
+        ...updatePromises
       ].filter(Boolean));
 
-      // Check for errors in responses
-      for (const response of responses) {
-        console.log("response",response);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to save cost entries');
-        }
+      // Check for errors in new entries response
+      if (newEntries.length > 0 && !responses[0].ok) {
+        const errorData = await responses[0].json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save new cost entries');
       }
 
       // Refresh the data after saving
@@ -466,13 +613,11 @@ const ProjectDetails = () => {
     } catch (err) {
       console.error('Error saving cost entries:', err);
       setError(err.message || 'Failed to save cost entries');
-      if (err.message === "No token provided") {
-        navigate('/login', { state: { from: location, error: "Session expired. Please login again." } });
-      }
     } finally {
       setIsSaving(false);
     }
   };
+
 
   const deleteCostEntry = async (id, index, reason) => {
     try {

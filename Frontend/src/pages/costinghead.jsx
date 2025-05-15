@@ -61,10 +61,13 @@ const CostingHead = () => {
 
   const handleAddNewRow = async () => {
     try {
+      const token = localStorage.getItem("token");
       setError(null);
       const response = await fetch('http://localhost:5000/api/overheads/new', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',
+          "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({
           projectId,
           overheadComponent: '',

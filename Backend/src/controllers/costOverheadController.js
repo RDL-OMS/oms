@@ -49,6 +49,7 @@ exports.createOverhead = async (req, res) => {
         
         // Save to database
         const savedOverhead = await newOverhead.save();
+        res.locals.entityId = newOverhead._id;
         
         res.status(201).json({
             success: true,
@@ -91,6 +92,7 @@ exports.updateOverhead = async (req, res) => {
 exports.deleteOverhead = async (req, res) => {
   try {
     const { id } = req.params;
+    
     const deletedOverhead = await CostOverhead.findByIdAndDelete(id);
 
     if (!deletedOverhead) {

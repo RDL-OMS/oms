@@ -6,6 +6,7 @@ const AuditLog = require('../models/AuditLog');
 // Get all projects (with role-based filtering)
 exports.getProjects = async (req, res) => {
 
+console.log("getprojects");
 
   try {
     // Verify authentication
@@ -470,6 +471,10 @@ exports.saveCostEntries = async (req, res) => {
 
     // Save all entries
     const savedEntries = await CostEntry.insertMany(validatedEntries);
+    console.log("saved",savedEntries[0]._id.toHexString());
+    const nid= savedEntries[0]._id.toHexString();
+    res.locals.entityId=nid;
+    
 
     // Update project's cost entries reference
     await Project.findOneAndUpdate(
@@ -496,9 +501,17 @@ exports.saveCostEntries = async (req, res) => {
 
 exports.updateCostEntries = async (req, res) => {
   try {
-    const { id } = req.params;
+    console.log("request",req.params);
+    
+    const {_id} = req.params;
+    
+    const id = _id;
+    console.log("id",id);
     const projectId = id;
     const { entries } = req.body;
+    console.log("Entries",entries);
+    
+    
 
     // Validate project exists
     const project = await Project.findOne({ projectId });

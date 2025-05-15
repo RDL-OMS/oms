@@ -227,6 +227,7 @@ function App() {
 
           <Route path="/teamlead/members" element={
             <ProtectedRoute allowedRoles={['teamlead']}>
+              <Navbar />
               <ManageProjectMembers />
             </ProtectedRoute>
           } />

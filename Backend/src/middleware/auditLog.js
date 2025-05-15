@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const AuditLog = require('../models/AuditLog');
-const User = require('../models/user'); // Import your User model
+const User = require('../models/user');
+ // Import your User model
 
 const auditLog = (action, entityType) => async (req, res, next) => {
   try {
@@ -17,7 +18,15 @@ console.log('user',user);
 
     // For update and delete, fetch the original document beforehand
     if (['UPDATE', 'DELETE'].includes(action)) {
+      try{
+        console.log("request",req.paramsw);
+        
       originalDoc = await mongoose.model(entityType).findById(req.params.id);
+      }
+      catch{
+        console.log("original doc error");
+        
+      }
     }
 
     // Setup post-response logging
