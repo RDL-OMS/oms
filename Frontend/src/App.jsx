@@ -139,20 +139,20 @@
 // src/App.jsx
 // src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OwnerDashboard from "./pages/owner/Dashboard";
 import TeamLeadDashboard from "./pages/teamlead/Dashboard";
 import MemberDashboard from "./pages/member/Dashboard";
-import Navbar from "./components/Navbar"
-import ProjectList from "./pages/ProjectList"
+import Navbar from "./components/Navbar";
+import ProjectList from "./pages/ProjectList";
 import UserManagement from "./pages/owner/Usermanagement";
 import CostingHead from "./pages/Costinghead";
 import ProjectDetails from "./pages/ProjectDetails";
 import ManageProjectMembers from "./pages/teamlead/MemberManagement";
 import AddProject from "./pages/AddProject";
-import Report from './pages/Report'
+import Report from "./pages/Report";
 
 function App() {
   return (
@@ -164,79 +164,105 @@ function App() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/admin/dashboard" element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <Navbar />
-              <OwnerDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <Navbar />
+                <OwnerDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/admin/users" element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <Navbar />
-              <UserManagement />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <Navbar />
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/report" element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <Navbar />
-              <Report />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/ProjectList" element={
-            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
-              <Navbar />
-              <ProjectList />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/report"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <Navbar />
+                <Report />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/ProjectList"
+            element={
+              <ProtectedRoute allowedRoles={["owner", "teamlead"]}>
+                <Navbar />
+                <ProjectList />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/projectdetails" element={
-            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
-              <Navbar />
-              <ProjectDetails />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/projectdetails"
+            element={
+              <ProtectedRoute allowedRoles={["owner", "teamlead"]}>
+                <Navbar />
+                <ProjectDetails />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/add-project"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <Navbar />
+                <AddProject />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/add-project" element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <Navbar />
-              <AddProject />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/costinghead"
+            element={
+              <ProtectedRoute allowedRoles={["owner", "teamlead"]}>
+                <Navbar />
+                <CostingHead />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/teamlead/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["teamlead"]}>
+                <Navbar />
+                <TeamLeadDashboard />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/teamlead/members"
+            element={
+              <ProtectedRoute allowedRoles={["teamlead"]}>
+                <Navbar />
+                <ManageProjectMembers />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/costinghead" element={
-            <ProtectedRoute allowedRoles={['owner', 'teamlead']}>
-              <Navbar />
-              <CostingHead />
-            </ProtectedRoute>
-          } />
-
-
-          <Route path="/teamlead/dashboard" element={
-            <ProtectedRoute allowedRoles={['teamlead']}>
-              <Navbar />
-              <TeamLeadDashboard />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/teamlead/members" element={
-            <ProtectedRoute allowedRoles={['teamlead']}>
-              <Navbar />
-              <ManageProjectMembers />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/member/dashboard" element={
-            <ProtectedRoute allowedRoles={['member']}>
-              <MemberDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/member/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <Navbar />
+                <MemberDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           <Route path="/dashboard" element={<RoleBasedRedirect />} />
         </Route>
@@ -245,34 +271,32 @@ function App() {
   );
 }
 
-// Role-based redirect component with null check
+export default App;
+
+// Role-based redirect component
+import { useAuth } from "./context/AuthContext";
+// import React from "react";
+// import { Navigate } from "react-router-dom";
+
 function RoleBasedRedirect() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
-  // Handle null/undefined user
-  if (!user) {
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
+  if (!user || !user.role) {
     return <Navigate to="/login" replace />;
   }
 
-  // Handle missing role
-  if (!user.role) {
-    console.error("User role is missing");
-    return <Navigate to="/login" replace />;
-  }
-
-  // Role-based routing
   switch (user.role.toLowerCase()) {
-    case 'owner':
+    case "owner":
       return <Navigate to="/admin/dashboard" replace />;
-    case 'teamlead':
+    case "teamlead":
       return <Navigate to="/teamlead/dashboard" replace />;
-    case 'member':
+    case "member":
       return <Navigate to="/member/dashboard" replace />;
     default:
-      console.error("Unknown user role:", user.role);
       return <Navigate to="/login" replace />;
   }
 }
-
-export default App;
